@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Green Screen Subtitle Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1210;
+    --panel:#151b18;
+    --panel-2:#1c231f;
+    --line:#2a332e;
+    --green:#39d98a;
+    --green-dim:#1f6b45;
+    --text:#eef3ef;
+    --text-dim:#9caaa2;
+    --danger:#e0665a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Kanit',sans-serif;
+    padding:20px 16px 60px;
+    line-height:1.5;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  header{margin-bottom:22px;}
+  header .head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  header .tag{color:var(--green);font-size:13px;letter-spacing:.02em;margin:0 0 6px;}
+  h1{font-size:22px;font-weight:700;margin:0 0 8px;}
+  header p{color:var(--text-dim);font-size:14px;margin:0;}
+  .settings-btn{
+    flex:0 0 auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:13px;font-weight:500;padding:9px 12px;
+    cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .settings-btn:active{border-color:var(--green-dim);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;}
+  .card h2{font-size:14px;font-weight:500;color:var(--text-dim);margin:0 0 12px;}
+  .card-head-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;}
+  .card-head-row h2{margin:0;}
+  .expand-btn{
+    flex:0 0 auto;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
+    color:var(--text);font-family:inherit;font-size:12px;font-weight:500;padding:6px 10px;
+    cursor:pointer;white-space:nowrap;
+  }
+  .expand-btn:active{border-color:var(--green-dim);}
+  label.field-label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+  input[type="password"],input[type="text"],textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:14px;padding:11px 12px;outline:none;
+  }
+  input:focus,textarea:focus{border-color:var(--green-dim);}
+  textarea{resize:vertical;min-height:140px;}
+  .two-col{display:grid;grid-template-columns:1fr;gap:12px;}
+  .file-drop{
+    border:1.5px dashed var(--line);border-radius:8px;padding:20px 14px;text-align:center;
+    cursor:pointer;background:var(--panel-2);transition:border-color .15s ease;
+  }
+  .file-drop:active{border-color:var(--green-dim);}
+  .file-drop input{display:none;}
+  .file-drop .icon{font-size:22px;display:block;margin-bottom:6px;}
+  .file-drop .hint{font-size:12px;color:var(--text-dim);margin-top:4px;}
+  .file-info{margin-top:10px;display:none;font-size:13px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;}
+  .file-info.show{display:block;}
+  .file-info b{color:var(--green);}
+  button.primary{
+    width:100%;background:var(--green);color:#08130d;border:none;border-radius:8px;
+    font-family:inherit;font-weight:700;font-size:15px;padding:14px;cursor:pointer;
+  }
+  button.primary:disabled{background:var(--green-dim);color:#c7d8ce;cursor:not-allowed;}
+  .status{display:none;margin-top:12px;font-size:13px;color:var(--text-dim);}
+  .status.show{display:flex;align-items:center;gap:8px;}
+  .spinner{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex:0 0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .step-list{margin-top:10px;font-size:12px;color:var(--text-dim);}
+  .step-list div{padding:2px 0;}
+  .step-list div.active{color:var(--green);}
+  .step-list div.done::before{content:"✓ ";color:var(--green);}
+  .step-list div.active::before{content:"› ";}
+  .step-list div.pending::before{content:"· ";}
+  .error-box{display:none;margin-top:12px;background:rgba(224,102,90,.1);border:1px solid var(--danger);color:#f2b8b1;border-radius:8px;padding:10px 12px;font-size:13px;}
+  .error-box.show{display:block;}
+  .result-card{display:none;}
+  .result-card.show{display:block;}
+  .preview-wrap{background:#000;border-radius:8px;overflow:hidden;aspect-ratio:9/16;max-width:260px;margin:0 auto 14px;}
+  video{width:100%;height:100%;display:block;object-fit:contain;}
+  canvas.hidden-canvas{display:none;}
+  a.dl-btn{display:block;width:100%;text-align:center;text-decoration:none;background:var(--green);color:#08130d;font-weight:700;font-size:14px;border-radius:8px;padding:13px;margin-bottom:8px;}
+  a.dl-btn.secondary-dl{background:var(--panel-2);color:var(--text);border:1px solid var(--line);font-weight:500;}
+  .foot-note{font-size:12px;color:var(--text-dim);margin-top:4px;}
+  .badge{display:inline-block;font-size:11px;color:var(--green);border:1px solid var(--green-dim);border-radius:5px;padding:2px 6px;margin-left:6px;}
+
+  /* ---------- settings modal ---------- */
+  .modal-backdrop{
+    display:none;position:fixed;inset:0;z-index:9998;
+    background:rgba(6,10,8,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal-box{
+    width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:20px;
+  }
+  .modal-box h2{font-size:15px;font-weight:700;color:var(--text);margin:0 0 14px;}
+  .modal-box .two-col{margin-bottom:14px;}
+  .modal-box button.primary{margin-top:4px;}
+
+  /* ---------- fullscreen edit overlay ---------- */
+  .fullscreen-editor{
+    display:none;position:fixed;inset:0;z-index:9999;
+    background:#0d1210;flex-direction:column;padding:16px;
+  }
+  .fullscreen-editor.show{display:flex;}
+  .fullscreen-editor .fe-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex:0 0 auto;
+  }
+  .fullscreen-editor .fe-head h2{font-size:14px;font-weight:500;color:var(--text-dim);margin:0;}
+  .fullscreen-editor textarea{
+    flex:1;width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:16px;line-height:1.6;padding:14px;
+    outline:none;resize:none;
+  }
+  .fullscreen-editor textarea:focus{border-color:var(--green-dim);}
+  .fullscreen-editor .fe-done{
+    flex:0 0 auto;margin-top:12px;width:100%;background:var(--green);color:#08130d;border:none;
+    border-radius:8px;font-family:inherit;font-weight:700;font-size:16px;padding:16px;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <div>
+        <p class="tag">SUBTITLE ALIGNER · CHROMA KEY 9:16</p>
+        <h1>Green Screen Subtitle Generator</h1>
+      </div>
+      <button type="button" class="settings-btn" id="settingsBtn">⚙️ API Keys</button>
+    </div>
+    <p>Gemini ร่างวรรคแรก → คุณแก้ไขเอง → Groq Whisper จับเวลาเสียงจริง → คลิปซับจอเขียว 1080×1920 ตรงปาก 100%</p>
+  </header>
+
+  <div class="card">
+    <h2>1 · ไฟล์เสียงพากย์ (.mp3 / .wav / .m4a)</h2>
+    <div class="file-drop" id="fileDrop">
+      <span class="icon">🎙️</span>
+      <div>แตะเพื่อเลือกไฟล์เสียง</div>
+      <div class="hint">เสียงพากย์เพียวๆ ยังไม่ใส่เพลง/เอฟเฟกต์</div>
+      <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,audio/*">
+    </div>
+    <div class="file-info" id="fileInfo"></div>
+    <audio id="audioEl" style="display:none;"></audio>
+  </div>
+
+  <div class="card">
+    <h2>2 · สคริปต์เต็ม</h2>
+    <label class="field-label" for="scriptText">วางสคริปต์ที่พากย์จริงทั้งหมด เรียงตามลำดับเสียง</label>
+    <textarea id="scriptText" placeholder="นี่คือวิธีที่โรบินร่วมวงว่ายน้ำกับเพื่อน..."></textarea>
+    <button class="primary" id="draftBtn" style="margin-top:12px;">1. ให้ Gemini ช่วยตัดวรรคร่างแรก</button>
+    <div class="status" id="draftStatusRow"><div class="spinner"></div><span>กำลังตัดวรรคร่างแรก...</span></div>
+    <div class="error-box" id="draftErrorBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head-row">
+      <h2>3 · ตรวจสอบ/แก้ไขวรรค (1 บรรทัด = 1 ซับ)</h2>
+      <button type="button" class="expand-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
+    </div>
+    <label class="field-label" for="editedScript">แก้ไขได้อิสระ — กด Enter เพื่อตัดขึ้นบรรทัดใหม่ หรือลบบรรทัดเพื่อรวมตามจังหวะพากย์จริงของคุณ</label>
+    <textarea id="editedScript" placeholder="ร่างจาก Gemini จะมาแสดงที่นี่ หรือพิมพ์/วางเองก็ได้ทีละบรรทัด..."></textarea>
+  </div>
+
+  <div class="card">
+    <button class="primary" id="startBtn">2. ยืนยันวรรค &amp; สร้างคลิปจอเขียว</button>
+    <div class="status" id="statusRow"><div class="spinner"></div><span id="statusText">กำลังทำงาน...</span></div>
+    <div class="step-list" id="stepList">
+      <div id="step1" class="pending">กำลังจับเวลาเสียงจริง (Whisper)</div>
+      <div id="step2" class="pending">กำลังจับคู่บรรทัดกับเสียง (Word Matching)</div>
+      <div id="step3" class="pending">กำลังเรนเดอร์คลิปจอเขียว</div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <h2>ผลลัพธ์ <span class="badge">1080×1920 · webm</span></h2>
+    <div class="preview-wrap"><video id="previewVideo" controls playsinline></video></div>
+    <a class="dl-btn" id="dlVideo" download="green_screen_subtitle.webm">⬇️ ดาวน์โหลดคลิปซับจอเขียว (.webm)</a>
+    <a class="dl-btn secondary-dl" id="dlSrt" download="subtitle.srt">📄 ดาวน์โหลดไฟล์ .srt</a>
+    <p class="foot-note">นำไฟล์ .webm เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปอนิเมะได้เลย</p>
+  </div>
+
+  <canvas id="renderCanvas" class="hidden-canvas" width="1080" height="1920"></canvas>
+
+</div>
+<!-- ---------- settings modal (API Keys) ---------- -->
+<div class="modal-backdrop" id="settingsModalBackdrop">
+  <div class="modal-box">
+    <h2>⚙️ API Keys</h2>
+    <div class="two-col">
+      <div>
+        <label class="field-label" for="apiKeyGemini">Gemini API Key (ร่างวรรคแรก)</label>
+        <input type="password" id="apiKeyGemini" placeholder="AIza...">
+      </div>
+      <div>
+        <label class="field-label" for="apiKeyGroq">Groq API Key (จับเวลาเสียง Whisper)</label>
+        <input type="password" id="apiKeyGroq" placeholder="gsk_...">
+      </div>
+    </div>
+    <button type="button" class="primary" id="settingsSaveBtn">บันทึกและปิด</button>
+  </div>
+</div>
+
+<!-- ---------- fullscreen script editor ---------- -->
+<div class="fullscreen-editor" id="fullscreenEditor">
+  <div class="fe-head">
+    <h2>3 · ตรวจสอบ/แก้ไขวรรค (เต็มจอ)</h2>
+  </div>
+  <textarea id="fullscreenTextarea" placeholder="พิมพ์/แก้ไขบรรทัดซับที่นี่..."></textarea>
+  <button type="button" class="fe-done" id="fullscreenDoneBtn">✓ บันทึกและเสร็จสิ้น</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  const CANVAS_W = 1080, CANVAS_H = 1920;
+  const FONT_PX = 74;
+  const FONT_FAMILY = "Kanit";
+  const STROKE_PX = 10;
+  const BOTTOM_MARGIN_RATIO = 0.10;
+  const GEMINI_MODEL = "gemini-3.6-flash";
+  const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
+  const GROQ_MODEL = "whisper-large-v3";
+  // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
+  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start
+  const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
+  const MIN_MATCH_SCORE = 0.25;   // similarity floor below which a line is treated as unmatched
+  const EARLY_BREAK_SCORE = 0.65; // score at which the inner span-search stops early once long enough
+
+  // ---------- elements ----------
+  const apiKeyGeminiInput = document.getElementById('apiKeyGemini');
+  const apiKeyGroqInput = document.getElementById('apiKeyGroq');
+  const fileDrop = document.getElementById('fileDrop');
+  const audioFileInput = document.getElementById('audioFile');
+  const fileInfo = document.getElementById('fileInfo');
+  const audioEl = document.getElementById('audioEl');
+  const scriptText = document.getElementById('scriptText');
+  const draftBtn = document.getElementById('draftBtn');
+  const draftStatusRow = document.getElementById('draftStatusRow');
+  const draftErrorBox = document.getElementById('draftErrorBox');
+  const editedScript = document.getElementById('editedScript');
+  const startBtn = document.getElementById('startBtn');
+  const statusRow = document.getElementById('statusRow');
+  const statusText = document.getElementById('statusText');
+  const errorBox = document.getElementById('errorBox');
+  const resultCard = document.getElementById('resultCard');
+  const previewVideo = document.getElementById('previewVideo');
+  const dlVideo = document.getElementById('dlVideo');
+  const dlSrt = document.getElementById('dlSrt');
+  const canvas = document.getElementById('renderCanvas');
+  const ctx = canvas.getContext('2d');
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
+  const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+  const expandEditBtn = document.getElementById('expandEditBtn');
+  const fullscreenEditor = document.getElementById('fullscreenEditor');
+  const fullscreenTextarea = document.getElementById('fullscreenTextarea');
+  const fullscreenDoneBtn = document.getElementById('fullscreenDoneBtn');
+
+  let selectedFile = null;
+
+  // ---------- persist API keys ----------
+  const savedGemini = localStorage.getItem('gemini_api_key');
+  if (savedGemini) apiKeyGeminiInput.value = savedGemini;
+  apiKeyGeminiInput.addEventListener('input', () => {
+    localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
+  });
+  const savedGroq = localStorage.getItem('groq_api_key');
+  if (savedGroq) apiKeyGroqInput.value = savedGroq;
+  apiKeyGroqInput.addEventListener('input', () => {
+    localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
+  });
+
+  // ---------- settings modal (API Keys) ----------
+  function openSettingsModal(){
+    settingsModalBackdrop.classList.add('show');
+  }
+  function closeSettingsModal(){
+    settingsModalBackdrop.classList.remove('show');
+  }
+  settingsBtn.addEventListener('click', openSettingsModal);
+  settingsSaveBtn.addEventListener('click', () => {
+    localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
+    localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
+    closeSettingsModal();
+  });
+  settingsModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === settingsModalBackdrop) closeSettingsModal();
+  });
+
+  // ---------- fullscreen script editor ----------
+  function openFullscreenEditor(){
+    fullscreenTextarea.value = editedScript.value;
+    fullscreenEditor.classList.add('show');
+    fullscreenTextarea.focus();
+  }
+  function closeFullscreenEditor(){
+    editedScript.value = fullscreenTextarea.value;
+    fullscreenEditor.classList.remove('show');
+  }
+  expandEditBtn.addEventListener('click', openFullscreenEditor);
+  fullscreenDoneBtn.addEventListener('click', closeFullscreenEditor);
+  fullscreenTextarea.addEventListener('input', () => {
+    editedScript.value = fullscreenTextarea.value;
+  });
+
+  // ---------- file selection ----------
+  fileDrop.addEventListener('click', () => audioFileInput.click());
+  audioFileInput.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    selectedFile = f;
+    audioEl.src = URL.createObjectURL(f);
+    await new Promise(res => {
+      audioEl.addEventListener('loadedmetadata', res, { once: true });
+    });
+    const durationSec = await getReliableDuration(audioEl);
+    const mins = Math.floor(durationSec / 60);
+    const secs = Math.round(durationSec % 60).toString().padStart(2, '0');
+    fileInfo.innerHTML = `<b>${escapeHtml(f.name)}</b> · ${mins}:${secs}`;
+    fileInfo.classList.add('show');
+  });
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getReliableDuration(mediaEl){
+    return new Promise((resolve) => {
+      if (isFinite(mediaEl.duration) && mediaEl.duration > 0){
+        resolve(mediaEl.duration);
+        return;
+      }
+      const onTimeUpdate = () => {
+        mediaEl.removeEventListener('timeupdate', onTimeUpdate);
+        mediaEl.currentTime = 0;
+        resolve(isFinite(mediaEl.duration) ? mediaEl.duration : 0);
+      };
+      mediaEl.addEventListener('timeupdate', onTimeUpdate);
+      mediaEl.currentTime = 1e10;
+    });
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function guessMimeType(file){
+    const name = file.name.toLowerCase();
+    if (file.type) return file.type;
+    if (name.endsWith('.wav')) return 'audio/wav';
+    if (name.endsWith('.m4a')) return 'audio/mp4';
+    return 'audio/mp3';
+  }
+
+  function stripWs(s){
+    return s.replace(/\s+/g, '');
+  }
+
+  function setStep(el, state){ el.className = state; }
+  function showStatus(msg, row = statusRow, textEl = statusText){ row.classList.add('show'); if (textEl) textEl.textContent = msg; }
+  function hideStatus(row = statusRow){ row.classList.remove('show'); }
+  function showError(msg, box = errorBox){ box.textContent = msg; box.classList.add('show'); }
+  function hideError(box = errorBox){ box.classList.remove('show'); }
+
+  function srtTime(t){
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = Math.floor(t % 60);
+    const ms = Math.round((t - Math.floor(t)) * 1000);
+    const pad = (n, len) => String(n).padStart(len, '0');
+    return `${pad(h,2)}:${pad(m,2)}:${pad(s,2)},${pad(ms,3)}`;
+  }
+
+  function buildSrt(segments){
+    return segments.map((seg, i) =>
+      `${i + 1}\n${srtTime(seg.start)} --> ${srtTime(seg.end)}\n${seg.text}\n`
+    ).join('\n');
+  }
+    // =========================================================
+  // STEP A — Groq Whisper: real acoustic word timing
+  // =========================================================
+  async function callGroqWhisper(apiKey, audioFile){
+    const form = new FormData();
+    form.append('file', audioFile);
+    form.append('model', GROQ_MODEL);
+    form.append('response_format', 'verbose_json');
+    form.append('timestamp_granularities[]', 'word');
+    form.append('language', 'th');
+
+    const res = await fetch(GROQ_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: form
+    });
+
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Groq Whisper API error (${res.status}): ${errText.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const words = data.words || [];
+    if (!Array.isArray(words) || words.length === 0){
+      throw new Error('Groq Whisper ไม่ส่งข้อมูล word-level timestamp กลับมา');
+    }
+    return words.map(w => ({
+      text: String(w.word || ''),
+      start: Number(w.start) || 0,
+      end: Number(w.end) || 0
+    }));
+  }
+
+  // =========================================================
+  // STEP 0 — Gemini: rough first-draft line split
+  // =========================================================
+  async function callGeminiDraft(apiKey, script){
+    const prompt = `คุณคือผู้เชี่ยวชาญด้านการตัดคำซับไตเติลสำหรับคลิปสั้นแนวตั้ง (TikTok/Shorts)
+อ่านสคริปต์ภาษาไทยด้านล่าง แล้วแบ่งเป็นท่อนร่างแรกสำหรับแสดงผลบนหน้าจอ:
+"""
+${script}
+"""
+กฎ:
+- 1 บรรทัดยาว 2-4 คำ (ไม่เกิน 16 ตัวอักษร)
+- ห้ามตัดกลางคำประสม คำเฉพาะ หรือชื่อตัวละคร
+- ห้ามลบคำ ห้ามเปลี่ยนคำ ต้องคงเนื้อหาเดิมไว้ครบถ้วน 100% ตามลำดับเดิม
+- ตอบกลับเฉพาะ JSON Array ของสตริงเท่านั้น เช่น:
+["นี่คือวิธีที่", "โรบินร่วมวง", "ว่ายน้ำกับเพื่อน"]`;
+
+    const body = { contents: [{ parts: [{ text: prompt }] }] };
+    const res = await fetch(GEMINI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Gemini API error (${res.status}): ${errText.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+    let lines;
+    try {
+      lines = JSON.parse(cleaned);
+    } catch (e) {
+      const match = cleaned.match(/\[[\s\S]*\]/);
+      if (match) lines = JSON.parse(match[0]);
+      else throw new Error('ไม่สามารถอ่านผลลัพธ์ JSON บรรทัดจาก Gemini ได้');
+    }
+
+    if (!Array.isArray(lines) || lines.length === 0){
+      throw new Error('Gemini ไม่ส่งบรรทัดข้อความกลับมา');
+    }
+    return lines.map(l => String(l).trim()).filter(l => l.length > 0);
+  }
+
+  // =========================================================
+  // STEP B — Two-pass anchor alignment
+  // =========================================================
+  function alignLinesToWords(lines, whisperWords) {
+    const words = whisperWords.map(w => stripWs(w.text));
+    const N = words.length;
+    let wp = 0;
+    const rawSegments = [];
+
+    // PASS 1: Locality-Aware Forward Matching
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const target = stripWs(line);
+      if (!target) continue;
+
+      let best = null;
+      const searchLimit = Math.min(N, wp + WORD_LOOKAHEAD);
+
+      for (let start = wp; start < searchLimit; start++) {
+        let acc = '';
+        const spanLimit = Math.min(N, start + WORD_MAX_SPAN);
+        for (let end = start; end < spanLimit; end++) {
+          acc += words[end];
+          const rawScore = textSimilarity(target, acc);
+          const distancePenalty = (start - wp) * 0.03;
+          const score = rawScore - distancePenalty;
+
+          if (!best || score > best.score) {
+            best = { start, end, score, rawScore };
+          }
+          if (acc.length >= target.length && rawScore > EARLY_BREAK_SCORE) break;
+          if (acc.length > target.length * 1.5 + 4) break;
+        }
+      }
+
+      if (best && best.rawScore >= MIN_MATCH_SCORE) {
+        rawSegments.push({
+          text: line,
+          start: whisperWords[best.start].start,
+          end: whisperWords[best.end].end,
+          matched: true
+        });
+        wp = best.end + 1;
+      } else {
+        rawSegments.push({ text: line, start: null, end: null, matched: false });
+        wp = Math.min(N, wp + Math.max(1, Math.round(target.length / 7)));
+      }
+    }
+
+    // PASS 2: Block-based Continuous Interpolation
+    const totalAudioDuration = whisperWords.length > 0 ? whisperWords[whisperWords.length - 1].end : 30;
+    let idx = 0;
+
+    while (idx < rawSegments.length) {
+      if (rawSegments[idx].matched) {
+        idx++;
+        continue;
+      }
+
+      const blockStart = idx;
+      while (idx < rawSegments.length && !rawSegments[idx].matched) {
+        idx++;
+      }
+      const blockEnd = idx;
+
+      let tPrev = 0;
+      if (blockStart > 0 && rawSegments[blockStart - 1].end != null) {
+        tPrev = rawSegments[blockStart - 1].end;
+      }
+
+      let tNext = totalAudioDuration;
+      if (blockEnd < rawSegments.length && rawSegments[blockEnd].start != null) {
+        tNext = rawSegments[blockEnd].start;
+      }
+
+      let totalChars = 0;
+      for (let k = blockStart; k < blockEnd; k++) {
+        totalChars += Math.max(1, stripWs(rawSegments[k].text).length);
+      }
+
+      const availableDuration = Math.max(0.4 * (blockEnd - blockStart), tNext - tPrev);
+      let currentCursor = tPrev;
+
+      for (let k = blockStart; k < blockEnd; k++) {
+        const charLen = Math.max(1, stripWs(rawSegments[k].text).length);
+        const slotDuration = (charLen / totalChars) * availableDuration;
+        const activeDuration = Math.max(0.25, slotDuration * 0.80);
+        rawSegments[k].start = currentCursor;
+        rawSegments[k].end = currentCursor + activeDuration;
+        currentCursor += slotDuration;
+      }
+    }
+
+    // PASS 3: Absolute Acoustic Lock & Natural Dynamic Cut
+    const finalSegments = [];
+
+    for (let i = 0; i < rawSegments.length; i++) {
+      const cur = rawSegments[i];
+      const next = rawSegments[i + 1];
+
+      const exactStart = cur.start;
+      let exactEnd = cur.end;
+
+      if (next && next.start != null) {
+        const naturalSilence = next.start - exactEnd;
+
+        if (naturalSilence < 0.10) {
+          exactEnd = Math.max(exactStart + 0.20, next.start - 0.03);
+        } else {
+          exactEnd = cur.end;
+          if (exactEnd - exactStart < 0.30) {
+            exactEnd = Math.min(exactStart + 0.30, next.start - 0.03);
+          }
+        }
+
+        if (exactEnd >= next.start) {
+          exactEnd = next.start - 0.02;
+        }
+      } else {
+        if (exactEnd - exactStart < 0.35) {
+          exactEnd = Math.min(exactStart + 0.35, totalAudioDuration);
+        }
+      }
+
+      if (exactEnd <= exactStart) {
+        exactEnd = exactStart + 0.25;
+      }
+
+      finalSegments.push({
+        text: cur.text,
+        start: Number(exactStart.toFixed(2)),
+        end: Number(exactEnd.toFixed(2))
+      });
+    }
+
+    return finalSegments;
+}
+    function levenshteinDistance(a, b){
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = new Array(n + 1);
+    let curr = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++){
+      curr[0] = i;
+      for (let j = 1; j <= n; j++){
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      }
+      const tmp = prev; prev = curr; curr = tmp;
+    }
+    return prev[n];
+  }
+
+  function textSimilarity(a, b){
+    if (a.length === 0 && b.length === 0) return 1;
+    if (a.length === 0 || b.length === 0) return 0;
+    const dist = levenshteinDistance(a, b);
+    return 1 - dist / Math.max(a.length, b.length);
+  }
+
+  // =========================================================
+  // WebM duration fixer
+  // =========================================================
+  async function fixWebmDuration(blob, durationSeconds){
+    const durationMs = Math.round(durationSeconds * 1000);
+    try {
+      if (typeof ysFixWebmDuration !== 'function'){
+        console.warn('fix-webm-duration library not loaded');
+        return blob;
+      }
+      return await new Promise((resolve) => {
+        ysFixWebmDuration(blob, durationMs, (fixedBlob) => resolve(fixedBlob));
+      });
+    } catch (e){
+      console.warn('fixWebmDuration failed', e);
+      return blob;
+    }
+  }
+
+  // ---------- canvas drawing ----------
+  function drawFrame(text){
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!text) return;
+
+    ctx.font = `700 ${FONT_PX}px "${FONT_FAMILY}"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = STROKE_PX;
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = '#FFFFFF';
+
+    const x = CANVAS_W / 2;
+    const y = CANVAS_H - (CANVAS_H * BOTTOM_MARGIN_RATIO);
+
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+
+  function findActiveText(segments, t){
+    for (const seg of segments){
+      if (t >= seg.start && t < seg.end) return seg.text;
+    }
+    return '';
+  }
+
+  // ---------- render + record ----------
+  async function renderVideo(segments, audioFile){
+    await document.fonts.load(`700 ${FONT_PX}px "${FONT_FAMILY}"`);
+    await document.fonts.ready;
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const renderAudio = new Audio();
+    renderAudio.src = URL.createObjectURL(audioFile);
+    renderAudio.crossOrigin = 'anonymous';
+
+    await new Promise((resolve, reject) => {
+      renderAudio.addEventListener('loadedmetadata', resolve, { once: true });
+      renderAudio.addEventListener('error', reject, { once: true });
+    });
+    const audioDurationSec = await getReliableDuration(renderAudio);
+
+    const sourceNode = audioCtx.createMediaElementSource(renderAudio);
+    const destNode = audioCtx.createMediaStreamDestination();
+    sourceNode.connect(destNode);
+
+    const videoStream = canvas.captureStream(30);
+    const combinedStream = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...destNode.stream.getAudioTracks()
+    ]);
+
+    let mimeType = 'video/webm;codecs=vp9,opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+    const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 9000000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const recordingDone = new Promise((resolve) => {
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+    });
+
+    let rafId;
+    function drawLoop(){
+      const t = renderAudio.currentTime;
+      drawFrame(findActiveText(segments, t));
+      if (!renderAudio.ended){
+        rafId = requestAnimationFrame(drawLoop);
+      }
+    }
+
+    drawFrame('');
+    recorder.start(200);
+    await renderAudio.play();
+    drawLoop();
+
+    await new Promise((resolve) => {
+      renderAudio.addEventListener('ended', resolve, { once: true });
+    });
+    cancelAnimationFrame(rafId);
+    recorder.stop();
+    await audioCtx.close();
+
+    const rawBlob = await recordingDone;
+    return { blob: rawBlob, durationSeconds: audioDurationSec };
+  }
+
+  // ---------- step 1: Gemini draft ----------
+  draftBtn.addEventListener('click', async () => {
+    hideError(draftErrorBox);
+
+    const geminiKey = apiKeyGeminiInput.value.trim();
+    const script = scriptText.value.trim();
+
+    if (!geminiKey){ showError('กรอก Gemini API Key ก่อน', draftErrorBox); return; }
+    if (!script){ showError('วางสคริปต์ก่อน', draftErrorBox); return; }
+
+    draftBtn.disabled = true;
+    showStatus(null, draftStatusRow, null);
+
+    try {
+      const lines = await callGeminiDraft(geminiKey, script);
+      editedScript.value = lines.join('\n');
+    } catch (err){
+      console.error(err);
+      showError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง', draftErrorBox);
+    } finally {
+      hideStatus(draftStatusRow);
+      draftBtn.disabled = false;
+    }
+  });
+
+  // ---------- step 2: confirm lines, sync to audio, render ----------
+  startBtn.addEventListener('click', async () => {
+    hideError();
+    resultCard.classList.remove('show');
+
+    const groqKey = apiKeyGroqInput.value.trim();
+    const lines = editedScript.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    if (!groqKey){ showError('กรอก Groq API Key ก่อน'); return; }
+    if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน'); return; }
+    if (lines.length === 0){ showError('ตรวจสอบ/แก้ไขวรรคในช่องด้านบนก่อน (อย่างน้อย 1 บรรทัด)'); return; }
+
+    startBtn.disabled = true;
+    setStep(step1, 'active'); setStep(step2, 'pending'); setStep(step3, 'pending');
+    showStatus('กำลังจับเวลาเสียงจริง (Whisper)...');
+
+    try {
+      const whisperWords = await callGroqWhisper(groqKey, selectedFile);
+      setStep(step1, 'done'); setStep(step2, 'active');
+      showStatus('กำลังจับคู่บรรทัดกับเสียง...');
+
+      const segments = alignLinesToWords(lines, whisperWords);
+      setStep(step2, 'done'); setStep(step3, 'active');
+      showStatus('กำลังเรนเดอร์คลิปจอเขียว...');
+
+      const { blob: rawVideoBlob, durationSeconds } = await renderVideo(segments, selectedFile);
+      const videoBlob = await fixWebmDuration(rawVideoBlob, durationSeconds);
+      setStep(step3, 'done');
+
+      const videoUrl = URL.createObjectURL(videoBlob);
+      previewVideo.src = videoUrl;
+      dlVideo.href = videoUrl;
+
+      const srtBlob = new Blob([buildSrt(segments)], { type: 'text/plain' });
+      dlSrt.href = URL.createObjectURL(srtBlob);
+
+      resultCard.classList.add('show');
+      hideStatus();
+    } catch (err){
+      console.error(err);
+      hideStatus();
+      showError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
+    } finally {
+      startBtn.disabled = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
