@@ -4,16 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Green Screen Subtitle Generator</title>
-  <!-- สั่งให้เปิดเต็มจอเหมือนแอปจริง ซ่อนแถบ URL -->
+
+<!-- สั่งเปิดเต็มจอ ซ่อนแถบ URL เบราว์เซอร์ -->
 <meta name="theme-color" content="#0d1210">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<!-- ไอคอนแอปรูปสเลทหนัง 🎬 และคำสั่งติดตั้ง PWA -->
+<!-- ไอคอนแอปรูปสเลทหนัง 🎬 และ PWA Manifest -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23151b18'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='50'>🎬</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23151b18'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='50'>🎬</text></svg>">
-<link rel="manifest" href='data:application/manifest+json,{"name":"Green Screen Subtitle","short_name":"GreenSub","start_url":".","display":"standalone","background_color":"%230d1210","theme_color":"%230d1210","icons":[{"src":"data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%23151b18%27/><text x=%2750%25%27 y=%2755%25%27 dominant-baseline=%27middle%27 text-anchor=%27middle%27 font-size=%2750%27>🎬</text></svg>","sizes":"192x192 512x512","type":"image/svg+xml"}]}'>script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.js"></script>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Green Screen Subtitle","short_name":"GreenSub","start_url":".","display":"standalone","background_color":"%230d1210","theme_color":"%230d1210","icons":[{"src":"data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%23151b18%27/><text x=%2750%25%27 y=%2755%25%27 dominant-baseline=%27middle%27 text-anchor=%27middle%27 font-size=%2750%27>🎬</text></svg>","sizes":"192x192 512x512","type":"image/svg+xml"}]}'>
+
+<script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
@@ -250,11 +253,10 @@
   const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
   const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
   const GROQ_MODEL = "whisper-large-v3";
-  // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
-  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start
-  const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
-  const MIN_MATCH_SCORE = 0.25;   // similarity floor below which a line is treated as unmatched
-  const EARLY_BREAK_SCORE = 0.65; // score at which the inner span-search stops early once long enough
+  const WORD_LOOKAHEAD = 20;
+  const WORD_MAX_SPAN = 25;
+  const MIN_MATCH_SCORE = 0.25;
+  const EARLY_BREAK_SCORE = 0.65;
 
   // ---------- elements ----------
   const apiKeyGeminiInput = document.getElementById('apiKeyGemini');
@@ -303,13 +305,9 @@
     localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
   });
 
-  // ---------- settings modal (API Keys) ----------
-  function openSettingsModal(){
-    settingsModalBackdrop.classList.add('show');
-  }
-  function closeSettingsModal(){
-    settingsModalBackdrop.classList.remove('show');
-  }
+  // ---------- settings modal ----------
+  function openSettingsModal(){ settingsModalBackdrop.classList.add('show'); }
+  function closeSettingsModal(){ settingsModalBackdrop.classList.remove('show'); }
   settingsBtn.addEventListener('click', openSettingsModal);
   settingsSaveBtn.addEventListener('click', () => {
     localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
@@ -320,7 +318,7 @@
     if (e.target === settingsModalBackdrop) closeSettingsModal();
   });
 
-  // ---------- fullscreen script editor ----------
+  // ---------- fullscreen editor ----------
   function openFullscreenEditor(){
     fullscreenTextarea.value = editedScript.value;
     fullscreenEditor.classList.add('show');
@@ -373,27 +371,7 @@
     });
   }
 
-  function fileToBase64(file){
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function guessMimeType(file){
-    const name = file.name.toLowerCase();
-    if (file.type) return file.type;
-    if (name.endsWith('.wav')) return 'audio/wav';
-    if (name.endsWith('.m4a')) return 'audio/mp4';
-    return 'audio/mp3';
-  }
-
-  function stripWs(s){
-    return s.replace(/\s+/g, '');
-  }
-
+  function stripWs(s){ return s.replace(/\s+/g, ''); }
   function setStep(el, state){ el.className = state; }
   function showStatus(msg, row = statusRow, textEl = statusText){ row.classList.add('show'); if (textEl) textEl.textContent = msg; }
   function hideStatus(row = statusRow){ row.classList.remove('show'); }
@@ -415,7 +393,7 @@
     ).join('\n');
   }
     // =========================================================
-  // STEP A — Groq Whisper: real acoustic word timing
+  // STEP A — Groq Whisper
   // =========================================================
   async function callGroqWhisper(apiKey, audioFile){
     const form = new FormData();
@@ -439,7 +417,7 @@
     const data = await res.json();
     const words = data.words || [];
     if (!Array.isArray(words) || words.length === 0){
-      throw new Error('Groq Whisper ไม่ส่งข้อมูล word-level timestamp กลับมา');
+      throw new Error('Groq Whisper ไม่ส่งข้อมูล word timestamp กลับมา');
     }
     return words.map(w => ({
       text: String(w.word || ''),
@@ -449,7 +427,7 @@
   }
 
   // =========================================================
-  // STEP 0 — Gemini: rough first-draft line split
+  // STEP 0 — Gemini Draft
   // =========================================================
   async function callGeminiDraft(apiKey, script){
     const prompt = `คุณคือผู้เชี่ยวชาญด้านการตัดคำซับไตเติลสำหรับคลิปสั้นแนวตั้ง (TikTok/Shorts)
@@ -496,7 +474,7 @@ ${script}
   }
 
   // =========================================================
-  // STEP B — Two-pass anchor alignment
+  // STEP B — Alignment (Absolute Acoustic Lock)
   // =========================================================
   function alignLinesToWords(lines, whisperWords) {
     const words = whisperWords.map(w => stripWs(w.text));
@@ -631,7 +609,7 @@ ${script}
     }
 
     return finalSegments;
-}
+    }
     function levenshteinDistance(a, b){
     const m = a.length, n = b.length;
     if (m === 0) return n;
