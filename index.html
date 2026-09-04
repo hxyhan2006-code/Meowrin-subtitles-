@@ -244,10 +244,22 @@
     flex:1; padding:10px 4px; border-radius:9px; border:none;
     background:transparent; color:var(--faint); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap;
   }
-  .type-btn.active-expense{ background:var(--expense); color:#fff; }
-  .type-btn.active-income{ background:var(--income); color:#fff; }
-  .type-btn.active-saving{ background:var(--saving); color:#fff; }
-  .type-btn.active-transfer{ background:var(--transfer); color:#101018; }
+  /* Round 12: transaction tabs — paint active state behind the label, never over it.
+     The button owns the layout; the pseudo-element owns the background. This avoids
+     Android/WebView text-paint and stacking glitches without positional nudges. */
+  .type-toggle{display:flex;align-items:stretch;gap:4px;isolation:isolate;}
+  .type-btn{position:relative;display:flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;width:0;padding:10px 6px;border:0;background:transparent!important;overflow:hidden;isolation:isolate;-webkit-tap-highlight-color:transparent;}
+  .type-btn::before{content:"";position:absolute;inset:0;border-radius:9999px;background:transparent;z-index:-1;pointer-events:none;}
+  .type-btn-label{position:relative;z-index:1;display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;opacity:1;-webkit-text-fill-color:currentColor;}
+  .type-btn.active-expense::before{background:var(--expense);}
+  .type-btn.active-income::before{background:var(--income);}
+  .type-btn.active-saving::before{background:var(--saving);}
+  .type-btn.active-transfer::before{background:var(--transfer);}
+  .type-btn.active-expense{color:#fff!important;}
+  .type-btn.active-income{color:#fff!important;}
+  .type-btn.active-saving{color:#fff!important;}
+  .type-btn.active-transfer{color:#101018!important;}
+  @supports (-webkit-touch-callout:none){.type-btn-label{-webkit-font-smoothing:antialiased;}}
   select.field-select{
     width:100%; font-family:inherit; font-size:14px; border:1px solid var(--line); border-radius:10px;
     padding:10px 12px; background:var(--surface-2); color:var(--ink);
@@ -585,7 +597,10 @@
 
   /* ===== Round 4: Notification Center / Push ===== */
   .notification-dashboard-card{margin:14px 20px 0;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:14px 16px;}
-  .notification-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.notification-title{font-size:14px;font-weight:800}.notification-sub{margin-top:4px;font-size:11.5px;color:var(--faint);line-height:1.45}.notification-badge{min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:var(--expense);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}.notification-list{display:grid;gap:7px;margin-top:10px}.notification-item{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.025);cursor:pointer}.notification-item.unread{border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)}.notification-icon{font-size:17px;line-height:1.25}.notification-content{min-width:0;flex:1}.notification-item-title{font-size:11.5px;font-weight:800;line-height:1.35}.notification-item-body{font-size:11px;color:var(--faint);line-height:1.45;margin-top:2px;overflow-wrap:anywhere}.notification-time{font-size:9.5px;color:var(--faint);white-space:nowrap}.notification-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.notification-setting{padding:10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.02)}.notification-setting label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px}.notification-setting small{display:block;color:var(--faint);font-size:9.5px;line-height:1.4;margin-top:4px}.notification-severity-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.notification-severity-row label{font-size:10px;padding:6px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface);}.notification-empty{padding:12px;text-align:center;color:var(--faint);font-size:11px}.notification-permission{margin-top:9px;padding:9px 10px;border-radius:10px;background:rgba(79,168,255,.08);border:1px solid rgba(79,168,255,.2);font-size:10.5px;line-height:1.45;color:var(--ink)}
+  .notification-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.notification-title{font-size:14px;font-weight:800}.notification-sub{margin-top:4px;font-size:11.5px;color:var(--faint);line-height:1.45}.notification-badge{min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:var(--expense);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}.notification-list{display:grid;gap:7px;margin-top:10px}
+.notification-dashboard-card .notification-item{border-radius:14px}
+.notification-dashboard-card .notification-item-title{font-size:12px}
+.notification-dashboard-card .notification-item-body{font-size:11px}.notification-item{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.025);cursor:pointer}.notification-item.unread{border-color:rgba(124,92,255,.35);background:rgba(124,92,255,.07)}.notification-icon{font-size:17px;line-height:1.25}.notification-content{min-width:0;flex:1}.notification-item-title{font-size:11.5px;font-weight:800;line-height:1.35}.notification-item-body{font-size:11px;color:var(--faint);line-height:1.45;margin-top:2px;overflow-wrap:anywhere}.notification-time{font-size:9.5px;color:var(--faint);white-space:nowrap}.notification-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.notification-setting{padding:10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.02)}.notification-setting label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px}.notification-setting small{display:block;color:var(--faint);font-size:9.5px;line-height:1.4;margin-top:4px}.notification-severity-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.notification-severity-row label{font-size:10px;padding:6px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface);}.notification-empty{padding:12px;text-align:center;color:var(--faint);font-size:11px}.notification-permission{margin-top:9px;padding:9px 10px;border-radius:10px;background:rgba(79,168,255,.08);border:1px solid rgba(79,168,255,.2);font-size:10.5px;line-height:1.45;color:var(--ink)}
   @media(max-width:380px){.notification-settings-grid{grid-template-columns:1fr}.notification-item-body{font-size:10.5px}}
 
 
@@ -1477,7 +1492,7 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
 
     <div class="notification-dashboard-card" id="notificationDashboardCard">
       <div class="notification-top">
-        <div><div class="notification-title">🔔 ผู้ช่วยแจ้งเตือน</div><div class="notification-sub" id="notificationDashboardSub">กำลังตรวจสอบสถานะการเงิน…</div></div>
+        <div><div class="notification-title">🧭 Financial Review · สิ่งที่คุณควรรู้ตอนนี้</div><div class="notification-sub" id="notificationDashboardSub">กำลังจัดลำดับความสำคัญทางการเงิน…</div></div>
         <div class="notification-badge" id="notificationUnreadBadge" style="display:none">0</div>
       </div>
       <div id="notificationPreviewList" class="notification-list"></div>
@@ -1599,10 +1614,10 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
       <button class="close-btn" id="closeBtn">✕</button>
     </div>
     <div class="type-toggle" id="typeToggle">
-      <button class="type-btn" data-type="expense">รายจ่าย</button>
-      <button class="type-btn" data-type="income">รายรับ</button>
-      <button class="type-btn" data-type="saving">ออม/ลงทุน</button>
-      <button class="type-btn" data-type="transfer">โอนเงิน</button>
+      <button class="type-btn" data-type="expense"><span class="type-btn-label">รายจ่าย</span></button>
+      <button class="type-btn" data-type="income"><span class="type-btn-label">รายรับ</span></button>
+      <button class="type-btn" data-type="saving"><span class="type-btn-label">ออม/ลงทุน</span></button>
+      <button class="type-btn" data-type="transfer"><span class="type-btn-label">โอนเงิน</span></button>
     </div>
     <label class="field-label">จำนวนเงิน (บาท)</label>
     <input id="amount" type="number" inputmode="decimal" step="any" min="0" placeholder="0" autocomplete="off" />
@@ -2027,7 +2042,7 @@ const THAI_MONTHS_FULL = ["มกราคม","กุมภาพันธ์",
 const THAI_MONTHS_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
 const DEFAULT_CATS = {
-  income: ["กยศ.", "เงินแม่", "ยูทูป", "อื่นๆ"],
+  income: ["กยศ.", "เงินคืนจากการยืม", "เงินแม่", "ยูทูป", "อื่นๆ"],
   expense: ["กิน", "คาเฟ่", "ค่าหอ (น้ำ/ไฟ)", "ค่าเดินทาง", "ของใช้จำเป็น", "ของชอบ", "เงินหาย/จิปาถะ"],
   saving: ["เงินออม", "ลงทุนหุ้น", "อื่นๆ"],
 };
@@ -2901,6 +2916,8 @@ function computePeriodAnalysisForRange(start, end, accountFilter){
 
   const sumOf = t => rangeEntries.filter(e => e.type===t).reduce((s,e) => s + toCents(e.amount), 0) / 100;
   const income = sumOf("income"), expense = sumOf("expense"), saving = sumOf("saving");
+  const loanRepaymentIncome = rangeEntries.filter(e => e.type === "income" && e.source === "loan_repayment").reduce((s,e) => s + toCents(e.amount), 0) / 100;
+  const nonLoanIncome = income - loanRepaymentIncome;
   const netCashFlow = income - expense - saving;
 
   let effStart = start, effEnd = end;
@@ -2931,7 +2948,7 @@ function computePeriodAnalysisForRange(start, end, accountFilter){
     .map(r => ({ ...r, pct: expense ? Math.round((r.amount/expense)*100) : 0 }));
 
   return {
-    income, expense, saving, netCashFlow,
+    income, loanRepaymentIncome, nonLoanIncome, expense, saving, netCashFlow,
     count: rangeEntries.length,
     avgIncomePerDay, avgExpensePerDay, avgExpensePerTxn,
     topCategory: breakdown[0]?.cat || "-",
@@ -3251,7 +3268,9 @@ function computeAccountBalance(accountId){
   });
   loans.forEach(l => {
     if(l.accountId === accountId) cents -= toCents(l.amount); // เงินต้นออกจากบัญชี
-    (l.repayments || []).forEach(r => { if(r.accountId === accountId) cents += toCents(r.amount); }); // เงินคืนเข้าบัญชี
+    // Repayment cash is represented by a canonical income entry (source=loan_repayment).
+    // Do NOT add repayments here again, otherwise the same cash inflow would be double-counted.
+    // syncLoanRepaymentEntries() migrates legacy repayments to entries on load.
     // adjustment เป็นการแก้ยอดคงเหลือ: บวก = เพิ่มเงินที่ถูกให้ยืมออก, ลบ = เงินที่ควรได้คืนเข้าบัญชี
     (l.adjustments || []).forEach(a => { if(a.accountId === accountId) cents -= toCents(a.amount); });
   });
@@ -3435,7 +3454,13 @@ function render(){
         ev.stopPropagation();
         if(!confirm("ลบรายการนี้ใช่ไหม?")) return;
         const target = entries.find(e => e.id === btn.dataset.id);
-        if(target) syncStudentLoanEntry(target, {...target, type:"__deleted__", category:""});
+        if(!target) return;
+        if(target.source === "loan_repayment"){
+          const result=deleteLoanRepayment(target.loanId,target.repaymentId);
+          if(!result.ok && result.error !== "cancelled") showToast("ลบเงินคืนไม่สำเร็จ");
+          return;
+        }
+        syncStudentLoanEntry(target, {...target, type:"__deleted__", category:""});
         entries = entries.filter(e => e.id !== btn.dataset.id);
         saveEntries();
         render();
@@ -3677,6 +3702,19 @@ function syncStudentLoanEntry(oldEntry, newEntry){
 function commitEntry(payload){
   let amount=parseFloat(payload.amount); if(!Number.isFinite(amount)||amount<=0) return {ok:false,error:"invalid_amount"};
   amount=Math.round(amount*100)/100; const date=payload.date||todayISO(); const note=(payload.note||"").trim(); const editingId=payload.editingId||null; const type=payload.type;
+  if(editingId){
+    const existing=entries.find(e=>e.id===editingId);
+    if(existing?.source === "loan_repayment"){
+      if(type!=="income" || payload.category!==existing.category) return {ok:false,error:"loan_repayment_category_locked"};
+      const loan=loans.find(l=>l.id===existing.loanId), repayment=loan?.repayments?.find(r=>r.id===existing.repaymentId);
+      if(!loan||!repayment) return {ok:false,error:"loan_repayment_link_missing"};
+      const max=getLoanRepaymentGrossCap(loan,repayment.id);
+      if(toCents(amount)>toCents(max)) return {ok:false,error:"invalid_repayment_amount"};
+      repayment.amount=amount; repayment.accountId=payload.accountId||repayment.accountId; repayment.date=date; repayment.note=note||repayment.note||`รับคืนเงินจาก ${loan.person}`; repayment.financialEntryId=existing.id;
+      Object.assign(existing,{type:"income",category:loanRepaymentCategory(),accountId:repayment.accountId,amount,date,note:repayment.note,source:"loan_repayment",loanId:loan.id,repaymentId:repayment.id});
+      saveEntries();saveLoans();return{ok:true,entry:existing};
+    }
+  }
   if(type==="transfer"){
     const fromAccountId=payload.fromAccountId,toAccountId=payload.toAccountId;
     if(!fromAccountId||!toAccountId||fromAccountId===toAccountId) return {ok:false,error:"invalid_transfer_accounts"};
@@ -4434,6 +4472,7 @@ function buildFinancialSnapshot(){
   const forecastToMonthEnd = computeForecast(daysRemainingInMonth);
   const forecast30d = computeForecast(30);
 
+  const cashByAccount = accounts.map(a => ({ id:a.id, name:a.name, balance:computeAccountBalance(a.id) }));
   const snapshot = {
     generatedAt: today,
     netWorth: {
@@ -4441,10 +4480,20 @@ function buildFinancialSnapshot(){
       reserved: reserved,
       available: totalMoney - reserved,
       receivablesOutstanding: receivables,
+      liabilities: getTotalDebts(),
+    },
+    cash: { total:totalMoney, available:totalMoney-reserved, byAccount:cashByAccount },
+    incomeContext: {
+      total:thisMonthAnalysis.income,
+      loanRepayment:thisMonthAnalysis.loanRepaymentIncome,
+      nonLoanIncome:thisMonthAnalysis.nonLoanIncome,
+      note:"loanRepayment เป็นการเปลี่ยน receivable กลับเป็น cash ไม่ใช่ earned income"
     },
     thisMonth: {
       range: thisMonthBounds,
       income: thisMonthAnalysis.income,
+      loanRepaymentIncome: thisMonthAnalysis.loanRepaymentIncome,
+      nonLoanIncome: thisMonthAnalysis.nonLoanIncome,
       expense: thisMonthAnalysis.expense,
       saving: thisMonthAnalysis.saving,
       netCashFlow: thisMonthAnalysis.netCashFlow,
@@ -4492,10 +4541,134 @@ function buildFinancialSnapshot(){
     },
     budgetSummary: getBudgetFindingData(),
     emergencyFund: computeEmergencyFund(),
+    recurringExpenses: { monthlyEstimated:computeMonthlyRecurringCost(), upcoming:getUpcomingSummary() },
+    goals: typeof goals!=='undefined' ? goals : [],
   };
+  // Round 12: normalized intelligence context. Keep calculations deterministic and local;
+  // the LLM receives this structured result instead of reconstructing finance from raw entries.
+  snapshot.advisorContext = buildAdvisorContext(snapshot);
   snapshot.behaviorSummary = computeFinancialBehavior(snapshot);
   snapshot.financialBrain = computeFinancialHealth(snapshot);
+  snapshot.advisorContext = buildAdvisorContext(snapshot);
   return snapshot;
+}
+
+// ===== Round 12: Financial Advisor Intelligence Layer =====
+// Lightweight decision-support only — not a validated financial-health score.
+function buildAdvisorHistoricalBaseline(snapshot){
+  const now=new Date();
+  const completed=[];
+  for(let i=1;i<=3;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const b=monthBoundsISO(d.getFullYear(),d.getMonth());
+    const a=computePeriodAnalysisForRange(b.start,b.end,null);
+    completed.push({range:b,income:Number(a.income||0),expense:Number(a.expense||0),saving:Number(a.saving||0),netCashFlow:Number(a.netCashFlow||0),breakdown:(a.breakdown||[]).map(r=>({category:r.cat,amount:Number(r.amount||0),count:Number(r.count||0)})),transactionCount:Number(a.count||0)});
+  }
+  const usable=completed.filter(x=>x.transactionCount>=3 || x.income>0 || x.expense>0);
+  const avg=(key)=>usable.length?usable.reduce((s,x)=>s+x[key],0)/usable.length:null;
+  const catMap={};
+  usable.forEach(m=>m.breakdown.forEach(r=>{if(!catMap[r.category])catMap[r.category]=[];catMap[r.category].push(r.amount);}));
+  const categoryBaseline=Object.entries(catMap).map(([category,values])=>({category,months:values.length,average:values.reduce((a,b)=>a+b,0)/values.length}));
+  return {monthsConsidered:usable.length,requiredForStrongBaseline:2,monthlyAverage:{income:avg('income'),expense:avg('expense'),saving:avg('saving'),netCashFlow:avg('netCashFlow')},categoryBaseline};
+}
+
+function buildAdvisorContext(snapshot){
+  const baseline=buildAdvisorHistoricalBaseline(snapshot);
+  const expenseDays=Math.max(1,Number(snapshot.behaviorSummary?.spendingDaysElapsed||new Date().getDate()));
+  const avgDaily=Number(snapshot.behaviorSummary?.averageDailyExpense||0);
+  const available=Number(snapshot.cash?.available||0);
+  const runwayDays=avgDaily>0?available/avgDaily:null;
+  const forecast=snapshot.forecastToMonthEnd||{};
+  return {
+    baseline,
+    cashRunway:{estimatedDays:runwayDays,assumption:`ใช้ค่าใช้จ่ายเฉลี่ยต่อวันของเดือนปัจจุบันจาก ${expenseDays} วันที่ผ่านไป`,availableCash:available},
+    forecast:{monthEndAvailable:forecast.forecastAvailable,thirtyDayAvailable:snapshot.forecast30d?.forecastAvailable,assumption:'หักเฉพาะ recurring/upcoming expenses ที่ระบบรู้จัก ยังไม่สมมติรายรับในอนาคต'},
+    incomeClassification:{regularOrNonLoan:Number(snapshot.incomeContext?.nonLoanIncome||0),loanRepayment:Number(snapshot.incomeContext?.loanRepayment||0),rule:'loan repayment ไม่ใช่ earned/regular income และ transfers/savings are not income'},
+    dataQuality:{historicalMonths:baseline.monthsConsidered,hasStrongBaseline:baseline.monthsConsidered>=2}
+  };
+}
+
+function advisorFinding(id,severity,urgency,impact,confidence,evidence,action,stateKey,state='new',extra={}){
+  const score=Math.round((severity*urgency*impact*confidence)*100)/100;
+  return {id,severity,urgency,impact,confidence,evidence,action,stateKey,state,priorityScore:score,...extra};
+}
+function advisorSeverity(n){return n>=4?'critical':n>=3?'important':n>=2?'watch':'info';}
+
+function buildAdvisorFindings(snapshot,profile){
+  const out=[]; const b=snapshot.behaviorSummary||{}, c=snapshot.cash||{}, fc=snapshot.forecastToMonthEnd||{}, base=snapshot.advisorContext?.baseline||{};
+  const available=Number(c.available||0);
+  // Liquidity: only strong when the model has a real forward obligation/forecast signal.
+  if(Number(fc.forecastAvailable)<0){
+    out.push(advisorFinding('LIQUIDITY_FORECAST','critical',4,4,0.98,[`forecastAvailable=${fc.forecastAvailable}`,`upcoming=${fc.upcoming}`],'ชะลอรายจ่ายที่ไม่จำเป็นและตรวจสอบภาระที่กำลังจะถึงก่อนรายรับครั้งถัดไป','liquidity|forecast-negative','new'));
+  }
+  const minReserve=Number(profile?.minReserveTarget||0);
+  if(minReserve>0 && available<minReserve){
+    const ratio=minReserve>0?available/minReserve:1;
+    out.push(advisorFinding('MIN_BUFFER','critical',4,3,0.95,[`available=${available}`,`minReserveTarget=${minReserve}`],'รักษาเงินกันชนขั้นต่ำและเลื่อนรายจ่ายที่ไม่จำเป็นหากทำได้','liquidity|min-buffer','new',{data:{available,target:minReserve,shortfall:minReserve-available}}));
+  }
+  // Upcoming obligations: use the existing recurring engine and only surface material shortfall.
+  const upcomingOccurrences=typeof getUpcomingOccurrences==='function' ? getUpcomingOccurrences('7d') : [];
+  upcomingOccurrences.slice(0,20).forEach(o=>{
+    const amount=Number(o.r?.amount ?? o.amount ?? 0);
+    if(amount<=0)return;
+    const record=o.r||o; const link=typeof getReservedLinkInfo==='function' ? getReservedLinkInfo(record) : null; const shortfall=link?Number(link.shortfall||0):amount;
+    const status=o.status||record.status||'';
+    if(shortfall>0 && (status==='overdue'||status==='dueToday')){
+      const name=record.name||record.title||'รายการ'; const due=record.nextDueDate||record.date||'';
+      out.push(advisorFinding('OBLIGATION_SHORTFALL','critical',4,4,0.94,[`name=${name}`,`amount=${amount}`,`shortfall=${shortfall}`,`status=${status}`],'จัดลำดับภาระนี้ก่อนรายจ่าย discretionary และกันเงินตามจำนวนที่ขาด','obligation|'+name+'|'+due,'new',{data:{name,amount,shortfall,status,nextDueDate:due}}));
+    }
+  });
+  // Spending baseline: require >=2 completed months and meaningful transaction history.
+  const currentExpense=Number(snapshot.thisMonth?.expense||0), avgExpense=Number(base.monthlyAverage?.expense||0);
+  const elapsedDays=Math.max(1,new Date().getDate());
+  const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  const projectedExpense=elapsedDays>=7 ? currentExpense/elapsedDays*daysInMonth : null;
+  if(base.monthsConsidered>=2 && avgExpense>0 && projectedExpense!=null && projectedExpense>=avgExpense*1.25 && projectedExpense-avgExpense>=500){
+    const pct=((projectedExpense-avgExpense)/avgExpense)*100;
+    const confidence=Math.min(0.95,0.65+(elapsedDays/30)*0.3);
+    out.push(advisorFinding('SPENDING_ABOVE_BASELINE','important',2,3,confidence,[`monthToDate=${currentExpense}`,`projectedMonthEnd=${projectedExpense}`,`baseline=${avgExpense}`,`differencePct=${pct}`,`baselineMonths=${base.monthsConsidered}`],'ทบทวนหมวดที่เร่งตัวขึ้นและตั้งเพดาน discretionary ที่เหมาะกับเงินคงเหลือ','spending|overall','new',{data:{currentExpense,baseline:avgExpense,projectedExpense,pct,elapsedDays}}));
+  }
+  // Category-level meaningful deviations, with a minimum absolute amount to avoid tiny noise.
+  if(base.monthsConsidered>=2){
+    const currentMap=Object.fromEntries((snapshot.thisMonth?.topExpenseCategories||[]).map(x=>[x.category,Number(x.amount||0)]));
+    base.categoryBaseline.forEach(r=>{
+      const cur=currentMap[r.category]||0;
+      const expectedToDate=r.average*elapsedDays/daysInMonth;
+      const projected=elapsedDays>=7 ? cur/elapsedDays*daysInMonth : null;
+      if(projected!=null&&r.average>0&&projected>=r.average*1.3&&projected-r.average>=300){
+        out.push(advisorFinding('CATEGORY_SPIKE','important',2,2,Math.min(0.93,0.65+(elapsedDays/30)*0.3),[`category=${r.category}`,`monthToDate=${cur}`,`projectedMonthEnd=${projected}`,`baseline=${r.average}`,`expectedToDate=${expectedToDate}`,`months=${r.months}`],`พิจารณาคุมหมวด ${r.category} ให้อยู่ใกล้ระดับปกติในช่วงที่เหลือของเดือน`,`spending|category|${r.category}`,'new',{data:{category:r.category,current:cur,baseline:r.average,projected,pct:((projected-r.average)/r.average)*100,months:r.months}}));
+      }
+    });
+  }
+  const saving=Number(snapshot.thisMonth?.saving||0), income=Number(snapshot.incomeContext?.nonLoanIncome||0);
+  if(income>0 && saving/income<0.1){
+    out.push(advisorFinding('SAVINGS_PACE','important',2,2,0.9,[`regularIncome=${income}`,`saving=${saving}`,`savingsRate=${saving/income}`],'ถ้ากระแสเงินสดยังรองรับ ลองกันเงินออมเพิ่มตามจำนวนที่ไม่ทำให้ buffer ต่ำกว่าระดับปลอดภัย','savings|rate','new',{data:{saving,income,savingsRate:saving/income*100}}));
+  }
+  if(base.monthsConsidered>=2 && base.monthlyAverage.income>0 && income<base.monthlyAverage.income*0.8){
+    out.push(advisorFinding('INCOME_BELOW_BASELINE','important',3,3,0.88,[`current=${income}`,`baseline=${base.monthlyAverage.income}`,`months=${base.monthsConsidered}`],'เผื่อ cash buffer มากขึ้นจนกว่าจะเห็นว่ารายรับกลับสู่ระดับปกติ','income|below-baseline','new',{data:{current:income,baseline:base.monthlyAverage.income,pct:((income-base.monthlyAverage.income)/base.monthlyAverage.income)*100}}));
+  }
+  // Positive state only when there is genuinely nothing important to act on.
+  if(!out.length){
+    out.push(advisorFinding('STABLE','info',1,1,Math.min(1,base.monthsConsidered>=2?0.95:0.65),['no material critical/important findings'],'ยังไม่มีสิ่งที่ต้องลงมือทำเป็นพิเศษ — รักษาแผนปัจจุบันและทบทวนอีกครั้งเมื่อมีข้อมูลใหม่','global|stable','new',{data:{baselineMonths:base.monthsConsidered}}));
+  }
+  return out.sort((a,b)=>b.priorityScore-a.priorityScore);
+}
+
+function getAdvisorStateStore(){try{const x=JSON.parse(localStorage.getItem('vaultet_advisor_issue_states_v1')||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{};}catch(e){return {};}}
+function saveAdvisorStateStore(x){try{localStorage.setItem('vaultet_advisor_issue_states_v1',JSON.stringify(x));}catch(e){}}
+function resolveAdvisorStates(findings){
+  const states=getAdvisorStateStore(),now=new Date().toISOString();
+  const active=new Set(findings.map(f=>f.stateKey));
+  Object.keys(states).forEach(k=>{if(!active.has(k)&&states[k]?.status!=='resolved')states[k]={...states[k],status:'resolved',resolvedAt:now};});
+  findings.forEach(f=>{const prev=states[f.stateKey];if(!prev){f.state='new';}else if(prev.status==='resolved'){f.state='new';}else if(f.priorityScore>(prev.priorityScore||0)*1.2){f.state='worsening';}else if(f.priorityScore<(prev.priorityScore||0)*0.8){f.state='improving';}else{f.state='unchanged';}states[f.stateKey]={status:'active',priorityScore:f.priorityScore,lastSeen:now};});
+  saveAdvisorStateStore(states);
+  return findings;
+}
+
+function getAdvisorIntelligence(snapshot,profile){
+  const findings=resolveAdvisorStates(buildAdvisorFindings(snapshot,profile));
+  const top=findings.filter(f=>f.id!=='STABLE').slice(0,3);
+  return {generatedAt:new Date().toISOString(),status:top.some(f=>f.severity==='critical')?'needs attention':top.length?'watch':'stable',topPriorities:top,allFindings:findings,dataQuality:snapshot.advisorContext?.dataQuality||{}};
 }
 
 // ===== Round 3: Financial Brain =====
@@ -4527,7 +4700,10 @@ function computeFinancialHealth(snapshot){
   const benchmark={essentialTargetPct:50,discretionaryTargetPct:30,savingTargetPct:20,essentialPct:income>0?b.essentialExpense/income*100:null,discretionaryPct:income>0?b.discretionaryExpense/income*100:null,savingPct:income>0?Number(snapshot.thisMonth?.saving||0)/income*100:null};
   return {score,status,factors,negativeFactorCount:factors.filter(x=>x.status==='negative').length,benchmark,strengths:factors.filter(x=>x.status==='positive').map(x=>x.label),risks:factors.filter(x=>x.status!=='positive').map(x=>x.label)};
 }
-function buildFinancialBrainContext(snapshot,profile){return {financialBrain:snapshot.financialBrain,behaviorSummary:snapshot.behaviorSummary,budgetSummary:snapshot.budgetSummary,emergencyFund:snapshot.emergencyFund,forecastToMonthEnd:snapshot.forecastToMonthEnd,recurring:snapshot.upcoming,debts:snapshot.debts,goals:typeof goals!=='undefined'?goals:[],profile:profile||{},memory:loadAIMemory().slice(-20)};}
+function buildFinancialBrainContext(snapshot,profile){
+  const advisor=getAdvisorIntelligence(snapshot,profile||{});
+  return {financialBrain:snapshot.financialBrain,advisorIntelligence:advisor,cash:snapshot.cash,incomeContext:snapshot.incomeContext,behaviorSummary:snapshot.behaviorSummary,budgetSummary:snapshot.budgetSummary,emergencyFund:snapshot.emergencyFund,forecastToMonthEnd:snapshot.forecastToMonthEnd,forecast30d:snapshot.forecast30d,recurring:snapshot.recurringExpenses||snapshot.upcoming,debts:snapshot.debts,netWorth:snapshot.netWorth,goals:typeof goals!=='undefined'?goals:[],profile:profile||{},memory:loadAIMemory().slice(-20)};
+}
 function financialBrainRuleFindings(snapshot){
   const f=[],b=snapshot.behaviorSummary||{};
   if(snapshot.thisMonth.netCashFlow<0)f.push({id:'CASHFLOW_NEGATIVE',severity:'critical',data:{netCashFlow:snapshot.thisMonth.netCashFlow}});
@@ -4544,6 +4720,24 @@ function financialBrainRuleFindings(snapshot){
   const rank={critical:4,warning:3,info:2,positive:1};return f.sort((a,z)=>(rank[z.severity]||0)-(rank[a.severity]||0));
 }
 
+function extractAdvisorAmount(text){
+  const q=String(text||'');
+  const matches=[...q.matchAll(/(?:฿|บาท|ราคา|ซื้อ|จ่าย|ค่าใช้จ่าย)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi)].map(m=>Number(String(m[1]).replace(/,/g,''))).filter(Number.isFinite);
+  if(matches.length)return matches[0];
+  const standalone=[...q.matchAll(/\b([0-9]{2,}(?:,[0-9]{3})*(?:\.[0-9]+)?)\b/g)].map(m=>Number(String(m[1]).replace(/,/g,''))).filter(Number.isFinite);
+  return standalone.length===1?standalone[0]:null;
+}
+function buildAdvisorQueryContext(query,snapshot,profile){
+  const amount=extractAdvisorAmount(query);
+  if(amount==null)return {mode:'general',note:'ไม่ได้ระบุจำนวนเงินที่ตรวจสอบ affordability ได้ชัดเจน'};
+  const available=Number(snapshot.cash?.available||0);
+  const upcoming=(typeof getUpcomingOccurrences==='function'?getUpcomingOccurrences('7d'):[]).reduce((sum,o)=>sum+Number((o.r||o).amount||0),0);
+  const reserveTarget=Math.max(0,Number(profile?.minReserveTarget||0));
+  const afterPurchase=available-amount;
+  const afterKnownObligations=available-upcoming-amount;
+  return {mode:'affordability',purchaseAmount:amount,availableCash:available,upcoming7d:upcoming,minReserveTarget:reserveTarget,remainingAfterPurchase:afterPurchase,bufferAfterKnownObligations:afterKnownObligations,passesCashCheck:afterPurchase>=0,passesKnownObligationsCheck:afterKnownObligations>=0,passesReserveCheck:reserveTarget<=0||afterKnownObligations>=reserveTarget,assumptions:['ใช้เงินสดที่ใช้ได้หลังหักเงินกันไว้แล้ว','หักเฉพาะ recurring/upcoming obligations ที่ระบบรู้จักภายใน 7 วัน','ไม่สมมติรายรับในอนาคต','เงินสำรองขั้นต่ำใช้เฉพาะเมื่อผู้ใช้ตั้งค่าไว้']};
+}
+
 function buildFinancialAnalystSystemPrompt(snapshot, profile){
   const hasProfile = hasAIProfileContent(profile);
   const lines = [
@@ -4552,6 +4746,7 @@ function buildFinancialAnalystSystemPrompt(snapshot, profile){
     "ตอบสั้น กระชับ ตรงประเด็น เป็นภาษาไทย แยกแต่ละประเด็นด้วยเครื่องหมายขีด (-) ขึ้นบรรทัดใหม่ ไม่ต้องมีคำนำหรือคำลงท้ายยืดยาว",
     "ใช้ **ข้อความ** ล้อมรอบตัวเลขเงินหรือประเด็นสำคัญที่ต้องการเน้นให้ผู้ใช้เห็นชัด",
     "ถ้าคำถามของผู้ใช้ต้องการข้อมูลที่ไม่มีอยู่ใน Snapshot ให้บอกตรงๆ ว่าไม่มีข้อมูลส่วนนั้น อย่าสร้างตัวเลขขึ้นมาเอง",
+    "ถ้า Snapshot มี queryContext.mode=affordability ให้ใช้ผลคำนวณนั้นโดยตรงในการอธิบายว่าเงินก้อนนี้กระทบ cash, known obligations และ minimum reserve อย่างไร ห้ามคำนวณซ้ำเอง",
     "",
     "เรื่องหนี้สิน (debts): หนี้ กยศ. เป็นหนี้เพื่อการศึกษาที่ยังอยู่ใน Grace Period (ระหว่างศึกษา) — ยังไม่มีดอกเบี้ยเดินและยังไม่ต้องผ่อนชำระรายเดือนตอนนี้",
     "ห้ามเอา debts.totalDebt ไปหักออกจาก netWorth.available หรือมองว่ากระทบสภาพคล่อง/กระแสเงินสดของเดือนนี้เด็ดขาด (Cash Flow Forecast ในระบบก็ไม่ได้หักหนี้นี้ออกเช่นกัน)",
@@ -4609,7 +4804,8 @@ async function analyzeFinancialQuery(query, snapshot){
   if(!query || !query.trim()) return { ok:false, error:"empty_input" };
 
   const profile = loadAIProfile(); // null ถ้าผู้ใช้ยังไม่เคยตั้งค่า — ไม่ทำให้ query flow พังถ้าไม่มีโปรไฟล์
-  const systemPrompt = buildFinancialAnalystSystemPrompt(snapshot, profile);
+  const queryContext=buildAdvisorQueryContext(query,snapshot,profile);
+  const systemPrompt = buildFinancialAnalystSystemPrompt({...snapshot,queryContext}, profile);
 
   let res;
   try{
@@ -4939,87 +5135,34 @@ function simpleMarkdownToHtml(text){
 
 // --- Deterministic Rule Engine — Pure Local Function 100%, ไม่ยิง Network ---
 function evaluateProactiveRules(snapshot, profile){
-  const findings = [];
-  financialBrainRuleFindings(snapshot).forEach(f=>findings.push(f));
-
-  // Round 1: Budget Engine — เตือนเมื่อเกินงบ หรือ pace ปัจจุบันจะพาเกินงบ
-  (snapshot.budgetSummary?.rows || []).forEach(r => {
-    if(r.status === "OVER") findings.push({ id:"BUDGET_OVER", severity:"warning", data:r });
-    else if(r.status === "WATCH" && r.projected > r.budget) findings.push({ id:"BUDGET_PACE_HIGH", severity:"warning", data:r });
+  const intelligence=getAdvisorIntelligence(snapshot,profile||{});
+  const findings=[];
+  // Adapter layer: retain the existing notification IDs/UI while the intelligence layer owns priority.
+  intelligence.allFindings.forEach(f=>{
+    let id='ADVISOR_'+f.id, severity=f.severity==='critical'?'critical':f.severity==='important'?'warning':'info';
+    const d=f.data||{};
+    if(f.id==='LIQUIDITY_FORECAST')id='D';
+    else if(f.id==='MIN_BUFFER')id='A';
+    else if(f.id==='OBLIGATION_SHORTFALL')id='C';
+    else if(f.id==='SPENDING_ABOVE_BASELINE'||f.id==='CATEGORY_SPIKE')id='B';
+    else if(f.id==='SAVINGS_PACE')id='SAVINGS_RATE_LOW';
+    else if(f.id==='INCOME_BELOW_BASELINE')id='INCOME_DROP';
+    else if(f.id==='STABLE')id='OK';
+    findings.push({id,severity,data:d,priorityScore:f.priorityScore,evidence:f.evidence,action:f.action,stateKey:f.stateKey,state:f.state,confidence:f.confidence,urgency:f.urgency,impact:f.impact,insightType:f.id==='STABLE'?'progress':(severity==='critical'?'action':severity==='warning'?'warning':'insight'),sourceFindingId:f.id});
   });
-
-  // Round 2: Emergency Fund — ประเมินจากค่าใช้จ่ายจำเป็นและเป้าหมายเงินสำรอง
-  const ef = snapshot.emergencyFund;
-  if(ef && ef.recommendedEmergencyFund > 0){
-    if(ef.currentAvailableReserve < ef.recommendedEmergencyFund * 0.5){
-      findings.push({ id:"EMERGENCY_LOW", severity:"critical", data:ef });
-    }else if(ef.currentAvailableReserve < ef.recommendedEmergencyFund){
-      findings.push({ id:"EMERGENCY_LOW", severity:"warning", data:ef });
-    }else{
-      findings.push({ id:"EMERGENCY_HEALTHY", severity:"positive", data:ef });
-    }
-  }
-
-  // Rule A: เงินสำรองเสี่ยง — เทียบ netWorth.available กับ profile.minReserveTarget
-  if(profile && profile.minReserveTarget != null && profile.minReserveTarget > 0){
-    const available = snapshot.netWorth.available;
-    const target = profile.minReserveTarget;
-    if(available < target){
-      findings.push({ id:"A", severity:"critical", data:{ available, target, shortfall: target - available } });
-    }else if(available < target * 1.15){
-      findings.push({ id:"A", severity:"warning", data:{ available, target } });
-    }
-  }
-
-  // Rule D: กระแสเงินสดตึงตัว — forecastToMonthEnd.forecastAvailable ติดลบ
-  if(snapshot.forecastToMonthEnd.forecastAvailable < 0){
-    findings.push({ id:"D", severity:"critical", data:{
-      forecastAvailable: snapshot.forecastToMonthEnd.forecastAvailable,
-      daysRemaining: snapshot.forecastToMonthEnd.daysRemaining
-    }});
-  }
-
-  // Rule C: ภาระใกล้ถึง (7 วัน) ที่ไม่มีเงินกันไว้ หรือกันไว้ไม่พอ — overdue/dueToday = critical, อื่นๆ = warning
-  getUpcomingOccurrences("7d").forEach(o => {
-    const link = getReservedLinkInfo(o.r);
-    const insufficient = !link || link.shortfall > 0;
-    if(!insufficient) return;
-    const severity = (o.status === "overdue" || o.status === "dueToday") ? "critical" : "warning";
-    findings.push({ id:"C", severity, data:{
-      name: o.r.name, amount: o.r.amount, status: o.status, nextDueDate: o.r.nextDueDate,
-      shortfall: link ? link.shortfall : o.r.amount
-    }});
-  });
-
-  // Rule B: ค่าใช้จ่ายพุ่งผิดปกติ — เทียบรายจ่ายตามหมวดหมู่ thisMonth vs lastMonth, ดักหารด้วยศูนย์
-  // ใช้ expenseBreakdownFull ของ lastMonth (ไม่ใช่ topExpenseCategories ที่ตัดเหลือ Top 5) กันหมวดอันดับ 6 ลงไปโดนมองเป็น ฿0 ผิดๆ
-  const thisMap = {}; snapshot.thisMonth.topExpenseCategories.forEach(r => { thisMap[r.category] = r.amount; });
-  const lastMap = {};
-  (snapshot.lastMonth.expenseBreakdownFull || snapshot.lastMonth.topExpenseCategories).forEach(r => { lastMap[r.category] = r.amount; });
-  new Set([...Object.keys(thisMap), ...Object.keys(lastMap)]).forEach(cat => {
-    const thisMonthAmt = thisMap[cat] || 0;
-    const lastMonthAmt = lastMap[cat] || 0;
-    const diff = thisMonthAmt - lastMonthAmt;
-    const spike = (lastMonthAmt === 0 && thisMonthAmt >= 500) || (lastMonthAmt > 0 && thisMonthAmt >= lastMonthAmt * 2 && diff >= 300);
-    if(spike){
-      findings.push({ id:"B", severity:"warning", data:{ category:cat, thisMonthAmt, lastMonthAmt, diff } });
-    }
-  });
-
-  if(findings.length === 0){
-    findings.push({ id:"OK", severity:"positive", data:{} });
-  }
-
-  const severityRank = { critical:4, warning:3, info:2, positive:1 };
-  findings.sort((a,b) => severityRank[b.severity] - severityRank[a.severity]);
-
-  return { severity: findings[0].severity, topRuleId: findings[0].id, findings };
+  const top=findings.filter(f=>f.id!=='OK').sort((a,b)=>b.priorityScore-a.priorityScore).slice(0,3);
+  const stable=findings.find(f=>f.id==='OK');
+  return {severity:top[0]?.severity || 'positive',topRuleId:top[0]?.id || 'OK',findings:top.length?top:(stable?[stable]:[]),intelligence};
 }
 
 // --- Smart Cache & Invalidation ---
 // dataFingerprint ครอบคลุมทั้งการให้ยืมเงิน (loans), การแก้ตัวเลข (edit), และการเพิ่ม/ลบรายการ
 function getProactiveDataFingerprint(snapshot){
-  return `${entries.length}_${loans.length}_${budgets.length}_${JSON.stringify(snapshot.budgetSummary)}_${JSON.stringify(snapshot.emergencyFund)}_${JSON.stringify(snapshot.financialBrain)}_${JSON.stringify(snapshot.behaviorSummary)}_${snapshot.netWorth.available}_${entries[0]?.id || ""}`;
+  // Include the actual financial state, not only array lengths/first entry.
+  // This prevents stale Advisor/AI insight after editing an older repayment or loan.
+  const compactEntries=entries.map(e=>({id:e.id,type:e.type,category:e.category,accountId:e.accountId,fromAccountId:e.fromAccountId,toAccountId:e.toAccountId,amount:e.amount,date:e.date,source:e.source,loanId:e.loanId,repaymentId:e.repaymentId,debtId:e.debtId,debtPrincipalImpact:e.debtPrincipalImpact}));
+  const compactLoans=loans.map(l=>({id:l.id,amount:l.amount,accountId:l.accountId,adjustments:l.adjustments,repayments:l.repayments}));
+  return `${JSON.stringify(compactEntries)}|${JSON.stringify(compactLoans)}|${JSON.stringify(debts)}|${JSON.stringify(budgets)}|${JSON.stringify(snapshot.budgetSummary)}|${JSON.stringify(snapshot.emergencyFund)}|${JSON.stringify(snapshot.financialBrain)}|${JSON.stringify(snapshot.behaviorSummary)}`;
 }
 function loadProactiveCache(){
   try{
@@ -5038,7 +5181,13 @@ function proactiveRuleLabel(id){
 function buildProactiveSystemPrompt(evalResult, snapshot, profile){
   const hasProfile = hasAIProfileContent(profile);
   const lines = [
-    "คุณคือ Personal Financial Manager ของแอป Vaultet ทำหน้าที่เขียนข้อความสั้นๆ แสดงบนการ์ด Insight หน้า Dashboard",
+    "คุณคือ Personal Financial Manager ของแอป Vaultet ทำหน้าที่เขียนข้อความสั้นๆ แสดงบนการ์ด Financial Review หน้า Dashboard",
+    "บุคลิก: calm, professional, practical, honest, context-aware, ไม่ตื่นตูมและไม่รายงานทุกอย่างที่เกิดขึ้น",
+    "ถ้าสถานะการเงินปกติ ให้เงียบหรือสรุปสั้นๆ ว่าไม่มีเรื่องเร่งด่วน ไม่ต้องหาเรื่องมาเตือน",
+    "ทำหน้าที่เหมือน Personal Financial Manager: ตีความ → อธิบาย → จัดลำดับ → เสนอ action ไม่ใช่รายงานทุก transaction",
+    "แยก regular/non-loan income ออกจาก loan repayment เสมอ; loan repayment คือการเปลี่ยน receivable กลับเป็น cash ไม่ใช่ earned income",
+    "ถ้าข้อมูลย้อนหลังไม่พอสำหรับ baseline ให้บอกว่าไม่พอ ห้ามสร้างคำว่า unusual จากข้อมูลน้อย",
+    "ถ้าเป็น forecast ให้ระบุสมมติฐานและใช้คำว่า estimated/based on current pattern ไม่ใช่คำรับรอง",
     "เขียนแค่ 1-2 ประโยค กระชับ ตรงประเด็น เป็นภาษาไทย ไม่ต้องมีคำนำหรือคำลงท้าย",
     "ใช้ **ตัวหนา** ล้อมรอบตัวเลขเงินหรือหมวดหมู่/รายการที่สำคัญที่สุดที่ต้องการเน้น",
     "อ้างอิงเฉพาะตัวเลขจาก Findings/Snapshot ด้านล่างเท่านั้น ห้ามคำนวณหรือสร้างตัวเลขขึ้นมาเอง",
@@ -5055,6 +5204,7 @@ function buildProactiveSystemPrompt(evalResult, snapshot, profile){
       JSON.stringify(profile)
     );
   }
+  lines.push("", "Advisor Intelligence (Top priorities + evidence + action):", JSON.stringify(evalResult.intelligence||{}));
   lines.push("", "Findings (เรียงตามความสำคัญแล้ว):", JSON.stringify(evalResult.findings));
   lines.push("", "Financial Snapshot:", JSON.stringify(snapshot));
   lines.push("", "Financial Brain Context:", JSON.stringify(buildFinancialBrainContext(snapshot, profile)));
@@ -5100,125 +5250,150 @@ async function generateProactiveInsight(evalResult, snapshot, profile){
 }
 
 // ===== Vaultet Notification Center: functional local engine =====
-const VAULTET_NOTIF_KEY="vaultet_notifications_v1", VAULTET_NOTIF_SETTINGS_KEY="vaultet_notification_settings_v1";
+const VAULTET_NOTIF_KEY="vaultet_notifications_v1", VAULTET_NOTIF_SETTINGS_KEY="vaultet_notification_settings_v1", VAULTET_NOTIF_STATE_KEY="vaultet_notification_states_v2", VAULTET_ADVISOR_ACTIVE_KEY="vaultet_advisor_active_v1";
 const DEFAULT_NOTIF_SETTINGS=Object.freeze({enabled:true,positive:true,budget:true,emergency:true,forecast:true,obligation:true,behavior:true,quiet:true});
 const NOTIF_SETTING_KEYS=Object.keys(DEFAULT_NOTIF_SETTINGS);
-function normalizeVaultetNotifSettings(raw){
-  const out={...DEFAULT_NOTIF_SETTINGS};
-  if(raw && typeof raw === "object" && !Array.isArray(raw)){
-    NOTIF_SETTING_KEYS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(raw,k)) out[k]=raw[k]===true; });
-  }
-  return out;
-}
-function loadVaultetNotifSettings(){
-  try{
-    const raw=localStorage.getItem(VAULTET_NOTIF_SETTINGS_KEY);
-    return normalizeVaultetNotifSettings(raw ? JSON.parse(raw) : null);
-  }catch(e){ return {...DEFAULT_NOTIF_SETTINGS}; }
-}
-function saveVaultetNotifSettings(value){
-  const normalized=normalizeVaultetNotifSettings(value);
-  try{
-    localStorage.setItem(VAULTET_NOTIF_SETTINGS_KEY,JSON.stringify(normalized));
-    return true;
-  }catch(e){ return false; }
-}
-function syncVaultetNotifControls(){
-  const s=loadVaultetNotifSettings();
-  NOTIF_SETTING_KEYS.forEach(k=>{
-    const el=document.getElementById({enabled:"notifEnabledInput",positive:"notifPositiveInput",budget:"notifBudgetInput",emergency:"notifEmergencyInput",forecast:"notifForecastInput",obligation:"notifObligationInput",behavior:"notifBehaviorInput",quiet:"notifQuietInput"}[k]);
-    if(el) el.checked=s[k];
-  });
-  return s;
-}
+function normalizeVaultetNotifSettings(raw){const out={...DEFAULT_NOTIF_SETTINGS};if(raw&&typeof raw==="object"&&!Array.isArray(raw))NOTIF_SETTING_KEYS.forEach(k=>{if(Object.prototype.hasOwnProperty.call(raw,k))out[k]=raw[k]===true});return out;}
+function loadVaultetNotifSettings(){try{const raw=localStorage.getItem(VAULTET_NOTIF_SETTINGS_KEY);return normalizeVaultetNotifSettings(raw?JSON.parse(raw):null)}catch(e){return {...DEFAULT_NOTIF_SETTINGS}}}
+function saveVaultetNotifSettings(value){const normalized=normalizeVaultetNotifSettings(value);try{localStorage.setItem(VAULTET_NOTIF_SETTINGS_KEY,JSON.stringify(normalized));return true}catch(e){return false}}
+function syncVaultetNotifControls(){const s=loadVaultetNotifSettings();NOTIF_SETTING_KEYS.forEach(k=>{const el=document.getElementById({enabled:"notifEnabledInput",positive:"notifPositiveInput",budget:"notifBudgetInput",emergency:"notifEmergencyInput",forecast:"notifForecastInput",obligation:"notifObligationInput",behavior:"notifBehaviorInput",quiet:"notifQuietInput"}[k]);if(el)el.checked=s[k]});return s;}
 function loadVaultetNotifications(){try{const a=JSON.parse(localStorage.getItem(VAULTET_NOTIF_KEY)||"[]");return Array.isArray(a)?a:[]}catch(e){return []}}
 function saveVaultetNotifications(a){try{localStorage.setItem(VAULTET_NOTIF_KEY,JSON.stringify(a.slice(0,80)))}catch(e){}}
-function notifTypeEnabled(id,s){
- if(["EMERGENCY_LOW","A"].includes(id))return s.emergency;
- if(["BUDGET_OVER","BUDGET_PACE_HIGH"].includes(id))return s.budget;
- if(["D","CASHFLOW_NEGATIVE","FORECAST_NEGATIVE"].includes(id))return s.forecast;
- if(["C"].includes(id))return s.obligation;
- if(["B","SPENDING_SPIKE","HIGH_DISCRETIONARY_SPENDING","INCOME_DROP","SAVINGS_RATE_LOW"].includes(id))return s.behavior;
- if(["EMERGENCY_HEALTHY","FINANCIAL_STRENGTH","OK"].includes(id))return s.positive;
- return true;
+function loadVaultetNotifStates(){try{const x=JSON.parse(localStorage.getItem(VAULTET_NOTIF_STATE_KEY)||"{}");return x&&typeof x==="object"&&!Array.isArray(x)?x:{}}catch(e){return {}}}
+function saveVaultetNotifStates(x){try{localStorage.setItem(VAULTET_NOTIF_STATE_KEY,JSON.stringify(x))}catch(e){}}
+function loadVaultetAdvisorActive(){try{const x=JSON.parse(localStorage.getItem(VAULTET_ADVISOR_ACTIVE_KEY)||"[]");return Array.isArray(x)?x:[]}catch(e){return []}}
+function compactVaultetNotificationHistory(){try{const a=loadVaultetNotifications(),seen=new Set(),out=[];for(const n of a){const k=`${n.day||""}|${n.type||""}|${n.title||""}|${n.body||""}`;if(seen.has(k))continue;seen.add(k);out.push(n);if(out.length>=40)break;}if(out.length!==a.length)saveVaultetNotifications(out);}catch(e){}}
+function migrateVaultetNotificationHistory(){
+  const key="vaultet_notification_history_v3_migrated";
+  try{if(localStorage.getItem(key)==="1")return;
+    const a=loadVaultetNotifications(),seen=new Set(),out=[];
+    for(const n of a){
+      // New philosophy: historical notifications are limited to actionable critical events.
+      if(n.severity!=="critical")continue;
+      const k=n.fingerprint||`${n.day||""}|${n.type||""}|${n.title||""}|${n.body||""}`;
+      if(seen.has(k))continue; seen.add(k); out.push(n); if(out.length>=40)break;
+    }
+    saveVaultetNotifications(out); localStorage.setItem(key,"1");
+  }catch(e){}
 }
-function notificationFromFinding(f){
- const d=f.data||{}, money=n=>`฿${fmt(Math.abs(Number(n)||0))}`;
- const map={
-  BUDGET_OVER:["งบประมาณเกิน",`หมวด ${d.category||""} ใช้ไป ${money(d.spent)} จากงบ ${money(d.budget)}`],
-  BUDGET_PACE_HIGH:["ใช้เงินเร็วเกินงบ",`หมวด ${d.category||""} มีแนวโน้มเกินงบในเดือนนี้`],
-  EMERGENCY_LOW:["เงินสำรองฉุกเฉินยังไม่พอ",`เงินสำรอง ${money(d.currentAvailableReserve)} ยังต่ำกว่าเป้าหมาย ${money(d.recommendedEmergencyFund)}`],
-  A:["เงินสำรองต่ำกว่าเป้าหมาย",`เงินที่ใช้ได้ ${money(d.available)} ยังต่ำกว่าเป้าหมาย ${money(d.target)}`],
-  D:["กระแสเงินสดตึงตัว",`คาดการณ์ปลายช่วงเหลือ ${money(d.forecastAvailable)} — ควรเช็กค่าใช้จ่ายที่กำลังจะถึง`],
-  C:["มีภาระใกล้ถึงกำหนด",`${d.name||"รายการ"} ${money(d.amount)} ยังกันเงินไม่พอ`],
-  CASHFLOW_NEGATIVE:["กระแสเงินสดติดลบ","รายจ่ายมากกว่ารายรับในช่วงปัจจุบัน"],
-  FORECAST_NEGATIVE:["เงินอาจไม่พอถึงสิ้นช่วง","Forecast ส่งสัญญาณว่ากระแสเงินสดอาจติดลบ"],
-  B:["ค่าใช้จ่ายพุ่งผิดปกติ",`หมวด ${d.category||"ไม่ระบุ"} เพิ่มขึ้นเป็น ${money(d.thisMonthAmt)} จาก ${money(d.lastMonthAmt)} เดือนก่อน`],
-  SPENDING_SPIKE:["รายจ่ายพุ่งผิดปกติ","มีหมวดรายจ่ายที่เพิ่มขึ้นมากกว่าปกติ"],
-  HIGH_DISCRETIONARY_SPENDING:["รายจ่ายไม่จำเป็นสูง","สัดส่วนรายจ่ายไม่จำเป็นอยู่ในระดับที่ควรเฝ้าดู"],
-  INCOME_DROP:["รายรับลดลง","รายรับช่วงปัจจุบันลดลงจากช่วงก่อนหน้า"],
-  SAVINGS_RATE_LOW:["อัตราออมต่ำ","ช่วงนี้เงินที่เหลือสำหรับการออมยังต่ำกว่าที่ควร"],
-  EMERGENCY_HEALTHY:["เงินสำรองฉุกเฉินถึงเป้าหมาย","เงินสำรองของคุณอยู่ในระดับแข็งแรงแล้ว"],
-  FINANCIAL_STRENGTH:["สุขภาพการเงินแข็งแรง","ภาพรวมการเงินอยู่ในสถานะที่ดี"],
-  OK:["การเงินวันนี้ปกติดี","ยังไม่พบความเสี่ยงสำคัญจากข้อมูลล่าสุด"]
- };
- const v=map[f.id]||[proactiveRuleLabel(f.id),"มีเรื่องการเงินที่ควรตรวจสอบ"];
- return {title:v[0],body:v[1],icon:f.severity==="critical"?"🚨":f.severity==="warning"?"⚠️":"💡"};
+
+function saveVaultetAdvisorActive(x){try{localStorage.setItem(VAULTET_ADVISOR_ACTIVE_KEY,JSON.stringify(x.slice(0,3)))}catch(e){}}
+function notifTypeEnabled(id,s){if(["EMERGENCY_LOW","A"].includes(id))return s.emergency;if(["BUDGET_OVER","BUDGET_PACE_HIGH"].includes(id))return s.budget;if(["D","CASHFLOW_NEGATIVE","FORECAST_NEGATIVE"].includes(id))return s.forecast;if(["C"].includes(id))return s.obligation;if(["B","SPENDING_SPIKE","INCOME_DROP"].includes(id))return s.behavior;if(["EMERGENCY_HEALTHY","FINANCIAL_STRENGTH"].includes(id))return s.positive;return false;}
+function notificationFromFinding(f){const d=f.data||{},money=n=>`฿${fmt(Math.abs(Number(n)||0))}`;const map={BUDGET_OVER:["งบประมาณเกิน",`หมวด ${d.category||""} ใช้ไป ${money(d.spent)} จากงบ ${money(d.budget)}`],BUDGET_PACE_HIGH:["ใช้เงินเร็วเกินงบ",`หมวด ${d.category||""} มีแนวโน้มเกินงบในเดือนนี้`],EMERGENCY_LOW:["เงินสำรองฉุกเฉินต่ำ",`เงินสำรอง ${money(d.currentAvailableReserve)} ยังต่ำกว่าเป้าหมาย ${money(d.recommendedEmergencyFund)}`],A:["เงินสดต่ำกว่าเงินสำรองขั้นต่ำ",`เงินที่ใช้ได้ ${money(d.available)} ต่ำกว่าเป้าหมาย ${money(d.target)}`],D:["กระแสเงินสดตึงตัว",`คาดการณ์เงินใช้ได้ ${money(d.forecastAvailable)} — ควรเช็กภาระที่กำลังจะถึง`],C:["มีภาระสำคัญใกล้ถึงกำหนด",`${d.name||"รายการ"} ${money(d.amount)} ยังกันเงินไม่พอ`],CASHFLOW_NEGATIVE:["กระแสเงินสดติดลบ","รายจ่ายมากกว่ารายรับในช่วงปัจจุบัน"],FORECAST_NEGATIVE:["เงินอาจไม่พอถึงสิ้นช่วง","Forecast ส่งสัญญาณว่าเงินใช้ได้อาจติดลบ"],B:["ค่าใช้จ่ายหมวดหนึ่งพุ่งผิดปกติ",`หมวด ${d.category||"ไม่ระบุ"} เพิ่มขึ้นเป็น ${money(d.thisMonthAmt)} จาก ${money(d.lastMonthAmt)} เดือนก่อน`],SPENDING_SPIKE:["รายจ่ายพุ่งผิดปกติ","มีหมวดรายจ่ายที่เพิ่มขึ้นมากกว่าปกติ"],INCOME_DROP:["รายรับลดลงอย่างมีนัยสำคัญ","รายรับช่วงปัจจุบันลดลงจากช่วงก่อนหน้า"],EMERGENCY_HEALTHY:["เงินสำรองถึงเป้าหมาย","เงินสำรองของคุณอยู่ในระดับที่ตั้งไว้แล้ว"],FINANCIAL_STRENGTH:["สุขภาพการเงินแข็งแรง","ภาพรวมการเงินอยู่ในสถานะที่ดี"]};const v=map[f.id]||[proactiveRuleLabel(f.id),"มีประเด็นการเงินที่ควรตรวจสอบ"];return{title:v[0],body:v[1],icon:f.severity==="critical"?"🚨":f.severity==="warning"?"⚠️":"💡"};}
+function notificationIdentity(f){
+  const d=f.data||{};
+  const target=d.category||d.name||d.loanId||d.debtId||d.id||f.stateKey||"global";
+  let state=f.state||"active";
+  if(f.id==="A")state=d.available<d.target?"critical-low":"warning-near";
+  else if(f.id==="C")state=`${d.status||"upcoming"}|${d.nextDueDate||""}|${Math.round(Number(d.shortfall||0)/100)*100}`;
+  else if(f.id==="B")state=`${Math.round(Number(d.pct||0)/10)*10}`;
+  else if(f.id==="D")state=`${Math.round(Number(d.forecastAvailable||0)/500)*500}`;
+  return {key:`${f.id}|${target}`,state};
 }
-function addVaultetNotification(f){
- const s=loadVaultetNotifSettings();if(!s.enabled||!notifTypeEnabled(f.id,s))return;
- const h=new Date().getHours();if(s.quiet&&(h>=23||h<7)&&f.severity!=="critical")return;
- const a=loadVaultetNotifications(),day=todayISO(),fp=f.id+"|"+JSON.stringify(f.data||{}).slice(0,600);
- if(a.some(n=>n.day===day&&n.fingerprint===fp))return;
- const m=notificationFromFinding(f);a.unshift({id:makeId(),day,createdAt:new Date().toISOString(),fingerprint:fp,type:f.id,severity:f.severity,title:m.title,body:m.body,icon:m.icon,read:false});saveVaultetNotifications(a);
+function advisorPriorityScore(f){
+  const base={critical:100,warning:60,positive:10}[f.severity]||0;
+  const urgency={D:24,FORECAST_NEGATIVE:24,C:22,A:20,EMERGENCY_LOW:18,CASHFLOW_NEGATIVE:16,BUDGET_OVER:10,BUDGET_PACE_HIGH:7,B:6,SPENDING_SPIKE:6,INCOME_DROP:5,EMERGENCY_HEALTHY:1}[f.id]||0;
+  const d=f.data||{};
+  let impact=0;
+  if(Number(d.shortfall)>0) impact=Math.min(15,Number(d.shortfall)/1000);
+  if(Number(d.diff)>0) impact=Math.min(10,Number(d.diff)/1000);
+  if(Number(d.forecastAvailable)<0) impact=Math.min(15,Math.abs(Number(d.forecastAvailable))/1000);
+  return base+urgency+impact;
+}
+function advisorNotificationFindings(evalResult){
+  const allowed=new Set(["A","B","BUDGET_OVER","BUDGET_PACE_HIGH","EMERGENCY_LOW","D","C","CASHFLOW_NEGATIVE","FORECAST_NEGATIVE","SPENDING_SPIKE","INCOME_DROP","EMERGENCY_HEALTHY"]);
+  const seen=new Set(),out=[];
+  const rawFindings=(evalResult.findings||[]);
+  const hasForecastRisk=rawFindings.some(f=>f.id==="D"&&f.severity==="critical");
+  rawFindings.forEach(f=>{
+    if(hasForecastRisk && ["CASHFLOW_NEGATIVE","FORECAST_NEGATIVE"].includes(f.id)) return;
+    if(!allowed.has(f.id))return;
+    const ident=notificationIdentity(f), dedupeKey=ident.key+"|"+ident.state;
+    if(seen.has(dedupeKey))return; seen.add(dedupeKey);
+    out.push({...f,_identity:ident,priorityScore:advisorPriorityScore(f)});
+  });
+  return out.sort((a,b)=>b.priorityScore-a.priorityScore);
+}
+const VAULTET_NOTIFICATION_COOLDOWN_MS = 24*60*60*1000;
+function addVaultetNotification(f,states){
+  const s=loadVaultetNotifSettings();
+  // Notification is reserved for genuinely actionable critical events.
+  // Warnings/insights remain visible in Advisor but do not create notification history.
+  if(!s.enabled||!notifTypeEnabled(f.id,s)||f.severity!=="critical")return false;
+  const identity=f._identity||notificationIdentity(f), key=identity.key, prev=states[key];
+  const now=Date.now();
+  const previousSeverity=prev?.severity||"";
+  const escalated=previousSeverity!=="critical";
+  // Active + unchanged = dedupe. Once the issue is resolved, a later re-entry is a real state transition
+  // and is allowed to notify again; this prevents the 24h cooldown from hiding a genuinely recurring problem.
+  if(prev && prev.state===identity.state && !prev.resolvedAt)return false;
+  if(prev?.resolvedAt && prev.state===identity.state && !escalated) { /* resolved → re-entered: allow one new notification */ }
+  const h=new Date().getHours();
+  if(s.quiet&&h>=23&&h<7){states[key]={state:identity.state,severity:f.severity,lastSeen:todayISO(),resolvedAt:null};return false;}
+  const a=loadVaultetNotifications(),m=notificationFromFinding(f);
+  a.unshift({id:makeId(),day:todayISO(),createdAt:new Date().toISOString(),fingerprint:key+"|"+identity.state,type:f.id,severity:f.severity,title:m.title,body:m.body,icon:m.icon,read:false,priority:f.priorityScore||f.severity});
+  saveVaultetNotifications(a);
+  states[key]={state:identity.state,severity:f.severity,lastSeen:todayISO(),lastNotifiedAt:new Date(now).toISOString(),resolvedAt:null};
+  return true;
 }
 function renderVaultetNotifications(){
- const a=loadVaultetNotifications(),unread=a.filter(n=>!n.read).length,badge=document.getElementById("notificationUnreadBadge"),dot=document.getElementById("uxBellDot");
- if(badge){badge.textContent=unread;badge.style.display=unread?"flex":"none"}if(dot)dot.style.display=unread?"block":"none";
- const draw=(arr,target)=>{if(!target)return;target.innerHTML=arr.length?arr.map(n=>`<div class="notification-item ${n.read?"":"unread"}" data-notif-id="${escapeHtml(n.id)}"><div class="notification-icon">${n.icon||"🔔"}</div><div class="notification-content"><div class="notification-item-title">${escapeHtml(n.title)}</div><div class="notification-item-body">${escapeHtml(n.body)}</div></div><div class="notification-time">${escapeHtml(n.day===todayISO()?new Date(n.createdAt).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}):dayLabel(n.day))}</div></div>`).join(""):"<div class=\"notification-empty\">ยังไม่มีการแจ้งเตือน 🎉</div>";target.querySelectorAll("[data-notif-id]").forEach(el=>el.onclick=()=>{const x=loadVaultetNotifications(),n=x.find(v=>v.id===el.dataset.notifId);if(n)n.read=true;saveVaultetNotifications(x);renderVaultetNotifications()})};
- draw(a.slice(0,2),document.getElementById("notificationPreviewList"));draw(a,document.getElementById("notificationFullList"));const countEl=document.getElementById("notificationHistoryCount");if(countEl)countEl.textContent=String(a.length);
- const sub=document.getElementById("notificationDashboardSub");if(sub)sub.textContent=unread?`มี ${unread} รายการที่ยังไม่ได้อ่าน`:"ไม่มีรายการใหม่";
+  const a=loadVaultetNotifications(),unread=a.filter(n=>!n.read).length,badge=document.getElementById("notificationUnreadBadge"),dot=document.getElementById("uxBellDot");
+  if(badge){badge.textContent=unread;badge.style.display=unread?"flex":"none"}if(dot)dot.style.display=unread?"block":"none";
+  const draw=(arr,target)=>{if(!target)return;target.innerHTML=arr.length?arr.map(n=>`<div class="notification-item ${n.read?"":"unread"}" data-notif-id="${escapeHtml(n.id)}"><div class="notification-icon">${n.icon||"🔔"}</div><div class="notification-content"><div class="notification-item-title">${escapeHtml(n.title)}</div><div class="notification-item-body">${escapeHtml(n.body)}</div></div><div class="notification-time">${escapeHtml((n.day||todayISO())===todayISO() ? (n.createdAt ? new Date(n.createdAt).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}) : "ตอนนี้") : dayLabel(n.day||todayISO()))}</div></div>`).join(""):"<div class=\"notification-empty\">ตอนนี้ยังไม่มีเรื่องสำคัญที่ต้องแจ้ง 🎉</div>";target.querySelectorAll("[data-notif-id]").forEach(el=>el.onclick=()=>{const x=loadVaultetNotifications(),n=x.find(v=>v.id===el.dataset.notifId);if(n)n.read=true;saveVaultetNotifications(x);renderVaultetNotifications()})};
+  const active=loadVaultetAdvisorActive();
+  const current=active.slice(0,3);
+  const dashboardTarget=document.getElementById("notificationPreviewList");
+  if(dashboardTarget){
+    dashboardTarget.innerHTML=current.length?current.map((n,i)=>`<div class="notification-item ${n.severity==='critical'?"unread":""}"><div class="notification-icon">${n.icon||"💡"}</div><div class="notification-content"><div class="notification-item-title">${escapeHtml(n.title||"สิ่งที่ควรรู้")}</div><div class="notification-item-body">${escapeHtml(n.body||"")}${n.evidence?.[0]?` · หลักฐาน: ${escapeHtml(n.evidence[0])}`:""}</div></div><div class="notification-time">P${i+1}</div></div>`).join(""):"<div class=\"notification-empty\">ตอนนี้ไม่มีเรื่องสำคัญที่ต้องลงมือทำ 🎉</div>";
+  }
+  draw(a,document.getElementById("notificationFullList"));const countEl=document.getElementById("notificationHistoryCount");if(countEl)countEl.textContent=String(a.length);const sub=document.getElementById("notificationDashboardSub");if(sub)sub.textContent=current.length?`คัดมา ${current.length} เรื่องที่สำคัญที่สุด` : "ตอนนี้ไม่มีเรื่องสำคัญ — Insight อื่นอยู่ใน Advisor";
 }
-function toggleNotificationSettings(){
-  const panel=document.getElementById("notificationSettingsPanel"),btn=document.getElementById("notificationSettingsToggle");
-  if(!panel||!btn)return;
-  const open=panel.hidden;
-  panel.hidden=!open; btn.setAttribute("aria-expanded",String(open));
-  if(open) setTimeout(()=>panel.querySelector("input,button")?.focus({preventScroll:true}),0);
-}
-
+function toggleNotificationSettings(){const panel=document.getElementById("notificationSettingsPanel"),btn=document.getElementById("notificationSettingsToggle");if(!panel||!btn)return;const open=panel.hidden;panel.hidden=!open;btn.setAttribute("aria-expanded",String(open));if(open)setTimeout(()=>panel.querySelector("input,button")?.focus({preventScroll:true}),0);}
 function openVaultetNotificationCenter(){syncVaultetNotifControls();renderVaultetNotifications();document.getElementById("notificationOverlay")?.classList.add("open")}
 function closeVaultetNotificationCenter(){document.getElementById("notificationOverlay")?.classList.remove("open")}
-function checkVaultetNotifications(){try{const r=evaluateProactiveRules(buildFinancialSnapshot(),loadAIProfile());r.findings.slice(0,6).forEach(addVaultetNotification)}catch(e){}renderVaultetNotifications()}
+function renderAdvisorReviewCard(snapshot,profile){
+  const card=document.getElementById('notificationDashboardCard'); if(!card)return;
+  const result=getAdvisorIntelligence(snapshot,profile||{});
+  const current=result.topPriorities||[];
+  const sub=document.getElementById('notificationDashboardSub');
+  if(sub)sub.textContent=current.length?`คัดมา ${current.length} เรื่องที่มีผลกระทบสูงสุด`:'ตอนนี้ไม่มีเรื่องสำคัญที่ต้องลงมือทำ';
+  const target=document.getElementById('notificationPreviewList');
+  if(!target)return;
+  if(!current.length){target.innerHTML='<div class="notification-empty">ตอนนี้ทุกอย่างค่อนข้างเสถียร — ไม่มีเรื่องที่ต้องจัดการเป็นพิเศษ 🎉</div>';return;}
+  target.innerHTML=current.map(f=>{
+    const icon=f.severity==='critical'?'🚨':'⚠️';
+    const title=f.id==='LIQUIDITY_FORECAST'?'เงินสดอาจตึงตัว':f.id==='MIN_BUFFER'?'เงินกันชนต่ำกว่าที่ตั้งไว้':f.id==='OBLIGATION_SHORTFALL'?'ภาระสำคัญอาจขาดเงินกัน':f.id==='CATEGORY_SPIKE'?`หมวด ${f.data?.category||''} สูงกว่าปกติ`:f.id==='SPENDING_ABOVE_BASELINE'?'รายจ่ายรวมสูงกว่าระดับปกติ':f.id==='SAVINGS_PACE'?'จังหวะการออมช้าลง':f.id==='INCOME_BELOW_BASELINE'?'รายรับต่ำกว่าระดับปกติ':'สิ่งที่ควรรู้';
+    const ev=(f.evidence||[])[0]||'';
+    return `<div class="notification-item ${f.severity==='critical'?'unread':''}"><div class="notification-icon">${icon}</div><div class="notification-content"><div class="notification-item-title">${escapeHtml(title)}</div><div class="notification-item-body">${escapeHtml(f.action||'มีประเด็นที่ควรตรวจสอบ')}${ev?` · หลักฐาน: ${escapeHtml(ev)}`:''}</div></div><div class="notification-time">P${Math.min(3,Math.max(1,current.indexOf(f)+1))}</div></div>`;
+  }).join('');
+}
+function checkVaultetNotifications(){try{
+  const snap=buildFinancialSnapshot();
+  const result=evaluateProactiveRules(snap,loadAIProfile());
+  const current=advisorNotificationFindings(result),states=loadVaultetNotifStates(),activeKeys=new Set(current.map(f=>f._identity.key));
+  const nowIso=new Date().toISOString();
+  Object.keys(states).forEach(k=>{
+    if(!activeKeys.has(k) && !states[k].resolvedAt) states[k]={...states[k],resolvedAt:nowIso};
+  });
+  current.forEach(f=>addVaultetNotification(f,states));
+  saveVaultetNotifStates(states);
+  const activeForAdvisor=(result.intelligence?.topPriorities||[]).slice(0,3).map(f=>{
+    const m=notificationFromFinding(f);
+    const title=f.id==='CATEGORY_SPIKE'?`หมวด ${f.data?.category||''} สูงกว่าปกติ`:f.id==='SPENDING_ABOVE_BASELINE'?'รายจ่ายรวมสูงกว่าระดับปกติ':f.id==='SAVINGS_PACE'?'จังหวะการออมช้าลง':f.id==='INCOME_BELOW_BASELINE'?'รายรับต่ำกว่าระดับปกติ':m.title;
+    return{type:f.id,severity:f.severity,title,body:f.action||m.body,icon:f.severity==='critical'?'🚨':'⚠️',priority:f.priorityScore,state:f.state,confidence:f.confidence,evidence:f.evidence||[],action:f.action||''};
+  });
+  saveVaultetAdvisorActive(activeForAdvisor);
+  renderAdvisorReviewCard(snap,loadAIProfile());
+}catch(e){}renderVaultetNotifications();}
 function initVaultetNotifications(){
+  migrateVaultetNotificationHistory();
   syncVaultetNotifControls();
   const ids={enabled:"notifEnabledInput",positive:"notifPositiveInput",budget:"notifBudgetInput",emergency:"notifEmergencyInput",forecast:"notifForecastInput",obligation:"notifObligationInput",behavior:"notifBehaviorInput",quiet:"notifQuietInput"};
-  Object.entries(ids).forEach(([key,id])=>{
-    const el=document.getElementById(id);
-    if(!el || el.dataset.vaultetBound==="1") return;
-    el.dataset.vaultetBound="1";
-    el.addEventListener('change',()=>{
-      const current=loadVaultetNotifSettings();
-      current[key]=!!el.checked;
-      saveVaultetNotifSettings(current);
-      syncVaultetNotifControls();
-      checkVaultetNotifications();
-    });
-  });
-
-  document.getElementById("closeNotificationBtn")?.addEventListener("click",closeVaultetNotificationCenter);
-  document.getElementById("notificationOverlay")?.addEventListener("click",e=>{if(e.target.id==="notificationOverlay")closeVaultetNotificationCenter()});
-  document.getElementById("markNotificationsReadBtn")?.addEventListener("click",()=>{const a=loadVaultetNotifications();a.forEach(n=>n.read=true);saveVaultetNotifications(a);renderVaultetNotifications();showToast("อ่านการแจ้งเตือนทั้งหมดแล้ว")});
-  document.getElementById("clearNotificationsBtn")?.addEventListener("click",()=>{saveVaultetNotifications([]);renderVaultetNotifications();showToast("ล้างประวัติการแจ้งเตือนแล้ว")});
-  document.getElementById("requestNotificationBtn")?.addEventListener("click",async()=>{if(!("Notification"in window)){showToast("เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน");return}try{const p=await Notification.requestPermission();document.getElementById("notificationPermissionBox").textContent=p==="granted"?"เปิดการแจ้งเตือนบนเครื่องแล้ว":"ยังไม่ได้อนุญาตการแจ้งเตือนบนเครื่อง"}catch(e){showToast("เปิดการแจ้งเตือนไม่สำเร็จ")}});
-
-  window.addEventListener('storage',e=>{if(e.key===VAULTET_NOTIF_SETTINGS_KEY){syncVaultetNotifControls();renderVaultetNotifications();}});
-
-  renderVaultetNotifications();
-  setTimeout(checkVaultetNotifications,300);
-  setInterval(checkVaultetNotifications,300000);
+  Object.entries(ids).forEach(([key,id])=>{const el=document.getElementById(id);if(!el||el.dataset.vaultetBound==="1")return;el.dataset.vaultetBound="1";el.addEventListener("change",()=>{const current=loadVaultetNotifSettings();current[key]=!!el.checked;saveVaultetNotifSettings(current);syncVaultetNotifControls();checkVaultetNotifications();});});
+  document.getElementById("closeNotificationBtn")?.addEventListener("click",closeVaultetNotificationCenter);document.getElementById("notificationOverlay")?.addEventListener("click",e=>{if(e.target.id==="notificationOverlay")closeVaultetNotificationCenter()});document.getElementById("markNotificationsReadBtn")?.addEventListener("click",()=>{const a=loadVaultetNotifications();a.forEach(n=>n.read=true);saveVaultetNotifications(a);renderVaultetNotifications();showToast("อ่านการแจ้งเตือนทั้งหมดแล้ว")});document.getElementById("clearNotificationsBtn")?.addEventListener("click",()=>{saveVaultetNotifications([]);renderVaultetNotifications();showToast("ล้างประวัติการแจ้งเตือนแล้ว")});
+  document.getElementById("requestNotificationBtn")?.addEventListener("click",async()=>{if(!("Notification"in window)){showToast("เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน");return}try{const p=await Notification.requestPermission();document.getElementById("notificationPermissionBox").textContent=p==="granted"?"เปิดการแจ้งเตือนบนเครื่องแล้ว":"ยังไม่ได้อนุญาตการแจ้งเตือนบนเครื่อง"}catch(e){showToast("เปิดการแจ้งเตือนไม่สำเร็จ")} });
+  compactVaultetNotificationHistory(); window.addEventListener("storage",e=>{if(e.key===VAULTET_NOTIF_SETTINGS_KEY){syncVaultetNotifControls();renderVaultetNotifications();}});renderVaultetNotifications();setTimeout(checkVaultetNotifications,300);setInterval(checkVaultetNotifications,300000);
 }
-
 setTimeout(initVaultetNotifications,0);
 window.addEventListener("storage",e=>{if(e.key===VAULTET_NOTIF_SETTINGS_KEY){syncVaultetNotifControls();renderVaultetNotifications()}});
 
@@ -5268,7 +5443,7 @@ async function refreshProactiveCard(force){
   const snapshot = buildFinancialSnapshot();
   const profile = loadAIProfile();
   const evalResult = evaluateProactiveRules(snapshot, profile);
-  const fingerprint = getProactiveDataFingerprint(snapshot);
+  const fingerprint = getProactiveDataFingerprint(snapshot) + '|' + JSON.stringify(evalResult.intelligence?.topPriorities||[]);
 
   const cache = loadProactiveCache();
   // Milestone 4 fix: ต้องเช็ควันที่ด้วยเสมอ — ข้ามวันใหม่ต้องประเมิน/ดึง Insight ใหม่ทุกครั้ง แม้ fingerprint จะเหมือนเดิม
@@ -6004,11 +6179,74 @@ document.getElementById("addReservedBtn").addEventListener("click", () => {
 });
 
 // ===== เงินให้คนอื่นยืม / Receivables =====
+function loanRepaymentCategory(){ return "เงินคืนจากการยืม"; }
+
+function ensureLoanRepaymentCategory(){
+  if(!Array.isArray(CATS_BY_TYPE.income)) CATS_BY_TYPE.income=[];
+  if(!CATS_BY_TYPE.income.includes(loanRepaymentCategory())){
+    CATS_BY_TYPE.income.splice(1,0,loanRepaymentCategory());
+    saveCategories();
+  }
+}
+function findLoanRepaymentEntry(loanId, repaymentId){
+  return entries.find(e => e.source === "loan_repayment" && e.loanId === loanId && e.repaymentId === repaymentId) || null;
+}
+function createLoanRepaymentEntry(loan, repayment){
+  ensureLoanRepaymentCategory();
+  const entry={
+    id:makeId(),
+    type:"income",
+    category:loanRepaymentCategory(),
+    accountId:repayment.accountId,
+    amount:Number(repayment.amount),
+    date:repayment.date||todayISO(),
+    note:(repayment.note||`รับคืนเงินจาก ${loan.person}`).trim(),
+    source:"loan_repayment",
+    loanId:loan.id,
+    repaymentId:repayment.id
+  };
+  entries.unshift(entry);
+  repayment.financialEntryId=entry.id;
+  return entry;
+}
+function syncLoanRepaymentEntries(){
+  let changed=false;
+  ensureLoanRepaymentCategory();
+  const valid=new Set();
+  loans.forEach(loan=>{
+    if(!Array.isArray(loan.repayments)) loan.repayments=[];
+    loan.repayments.forEach(r=>{
+      valid.add(`${loan.id}|${r.id}`);
+      const linkedMatches=entries.filter(e=>e.source === "loan_repayment" && e.loanId === loan.id && e.repaymentId === r.id);
+      let entry=(r.financialEntryId && entries.find(e=>e.id===r.financialEntryId && e.source === "loan_repayment")) || linkedMatches[0] || null;
+      if(!entry){
+        createLoanRepaymentEntry(loan,r); changed=true;
+      }else{
+        // Keep exactly one canonical financial entry per repayment; remove any duplicate legacy copies.
+        if(linkedMatches.length>1){
+          const keepId=entry.id;
+          entries=entries.filter(e=>!(e.source === "loan_repayment" && e.loanId === loan.id && e.repaymentId === r.id && e.id !== keepId));
+          changed=true;
+        }
+        const before=JSON.stringify([entry.type,entry.category,entry.accountId,entry.amount,entry.date,entry.note,entry.source,entry.loanId,entry.repaymentId]);
+        entry.type="income"; entry.category=loanRepaymentCategory(); entry.accountId=r.accountId||entry.accountId||UNASSIGNED_ACCOUNT_ID;
+        entry.amount=Number(r.amount); entry.date=r.date||entry.date||todayISO(); entry.note=(r.note||`รับคืนเงินจาก ${loan.person}`).trim();
+        entry.source="loan_repayment"; entry.loanId=loan.id; entry.repaymentId=r.id; r.financialEntryId=entry.id;
+        if(before!==JSON.stringify([entry.type,entry.category,entry.accountId,entry.amount,entry.date,entry.note,entry.source,entry.loanId,entry.repaymentId])) changed=true;
+      }
+    });
+  });
+  const orphanRepaymentEntries=entries.filter(e=>e.source==="loan_repayment" && !valid.has(`${e.loanId}|${e.repaymentId}`));
+  if(orphanRepaymentEntries.length){
+    const ids=new Set(orphanRepaymentEntries.map(e=>e.id));
+    entries=entries.filter(e=>!ids.has(e.id)); changed=true;
+  }
+  if(changed){ saveEntries(); saveLoans(); }
+  return changed;
+}
 function getLoanRepaymentGrossCap(loan, repaymentId){
-  // Maximum amount this repayment may represent without exceeding the loan's
-  // current principal after adjustments and all other repayments.
-  const gross = toCents(loan.amount) + (loan.adjustments || []).reduce((sum,a)=>sum + toCents(a.amount),0);
-  const other = (loan.repayments || []).reduce((sum,r)=>r.id===repaymentId ? sum : sum + toCents(r.amount),0);
+  const gross=toCents(loan.amount)+(loan.adjustments||[]).reduce((sum,a)=>sum+toCents(a.amount),0);
+  const other=(loan.repayments||[]).reduce((sum,r)=>r.id===repaymentId?sum:sum+toCents(r.amount),0);
   return Math.max(0,(gross-other)/100);
 }
 function chooseAccountForLoanMovement(defaultAccountId){
@@ -6016,10 +6254,24 @@ function chooseAccountForLoanMovement(defaultAccountId){
   if(accounts.length===1) return accounts[0].id;
   const currentIndex=Math.max(0,accounts.findIndex(a=>a.id===defaultAccountId));
   const names=accounts.map((a,i)=>`${i+1}. ${a.name}`).join("\n");
-  const raw=prompt(`เงินเข้าบัญชีไหน?\\n${names}\\nพิมพ์หมายเลข:`,String(currentIndex+1));
+  const raw=prompt(`เงินเข้าบัญชีไหน?\n${names}\nพิมพ์หมายเลข:`,String(currentIndex+1));
   if(raw===null) return null;
   const idx=(parseInt(raw)||currentIndex+1)-1;
   return accounts[idx]?.id || null;
+}
+function createLoanRepayment(loanId, amount, accountId, date=todayISO(), note=""){
+  const loan=loans.find(l=>l.id===loanId); if(!loan) return {ok:false,error:"loan_not_found"};
+  if(!Array.isArray(loan.repayments)) loan.repayments=[];
+  const outstanding=loanOutstanding(loan);
+  const cents=toCents(amount);
+  if(cents<=0||cents>toCents(outstanding)) return {ok:false,error:"invalid_amount"};
+  if(!accountId||!accounts.some(a=>a.id===accountId)) return {ok:false,error:"missing_account"};
+  ensureLoanRepaymentCategory();
+  const repayment={id:makeId(),amount:cents/100,date:date||todayISO(),accountId,note:(note||`รับคืนเงินจาก ${loan.person}`).trim()};
+  loan.repayments.push(repayment);
+  createLoanRepaymentEntry(loan,repayment);
+  saveEntries(); saveLoans();
+  return {ok:true,repayment,entry:findLoanRepaymentEntry(loan.id,repayment.id)};
 }
 function editLoanRepayment(loanId, repaymentId){
   const loan=loans.find(l=>l.id===loanId); if(!loan) return {ok:false,error:"loan_not_found"};
@@ -6028,20 +6280,26 @@ function editLoanRepayment(loanId, repaymentId){
   const raw=prompt(`แก้ยอดเงินคืนของ ${loan.person} (สูงสุด ฿${fmt(max)}):`,String(r.amount));
   if(raw===null) return {ok:false,error:"cancelled"};
   const amount=Math.round(parseFloat(raw)*100)/100;
-  if(!Number.isFinite(amount)||amount<=0||amount>max) { showToast(`ยอดเงินคืนต้องอยู่ระหว่าง 0 ถึง ฿${fmt(max)}`); return {ok:false,error:"invalid_amount"}; }
+  if(!Number.isFinite(amount)||amount<=0||amount>max){showToast(`ยอดเงินคืนต้องอยู่ระหว่าง 0 ถึง ฿${fmt(max)}`);return {ok:false,error:"invalid_amount"};}
   const accountId=chooseAccountForLoanMovement(r.accountId); if(!accountId) return {ok:false,error:"cancelled"};
-  r.amount=amount; r.accountId=accountId;
-  saveLoans(); renderLoansManageList(); render();
-  return {ok:true,repayment:r};
+  const dateRaw=prompt("วันที่รับเงินคืน (YYYY-MM-DD):",r.date||todayISO()); if(dateRaw===null)return{ok:false,error:"cancelled"};
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(dateRaw.trim())?dateRaw.trim():r.date||todayISO();
+  const note=prompt("โน้ต (ไม่บังคับ):",r.note||`รับคืนเงินจาก ${loan.person}`); if(note===null)return{ok:false,error:"cancelled"};
+  r.amount=amount; r.accountId=accountId; r.date=date; r.note=note.trim();
+  const entry=(r.financialEntryId&&entries.find(e=>e.id===r.financialEntryId))||findLoanRepaymentEntry(loanId,repaymentId)||createLoanRepaymentEntry(loan,r);
+  entry.type="income";entry.category=loanRepaymentCategory();entry.accountId=accountId;entry.amount=amount;entry.date=date;entry.note=r.note;entry.source="loan_repayment";entry.loanId=loanId;entry.repaymentId=repaymentId;r.financialEntryId=entry.id;
+  saveEntries();saveLoans();renderLoansManageList();render();
+  return {ok:true,repayment:r,entry};
 }
 function deleteLoanRepayment(loanId, repaymentId){
-  const loan=loans.find(l=>l.id===loanId); if(!loan) return {ok:false,error:"loan_not_found"};
-  const idx=(loan.repayments||[]).findIndex(x=>x.id===repaymentId); if(idx<0) return {ok:false,error:"repayment_not_found"};
-  if(!confirm("ลบรายการรับเงินคืนนี้ใช่ไหม? เงินที่เคยรับคืนจะถูกหักกลับจากบัญชีโดยอัตโนมัติ")) return {ok:false,error:"cancelled"};
-  loan.repayments.splice(idx,1); saveLoans(); renderLoansManageList(); render();
-  return {ok:true};
+  const loan=loans.find(l=>l.id===loanId); if(!loan)return{ok:false,error:"loan_not_found"};
+  const idx=(loan.repayments||[]).findIndex(x=>x.id===repaymentId);if(idx<0)return{ok:false,error:"repayment_not_found"};
+  if(!confirm("ลบรายการรับเงินคืนนี้ใช่ไหม? เงินที่เคยรับคืนจะถูกหักกลับจากบัญชีโดยอัตโนมัติ"))return{ok:false,error:"cancelled"};
+  const r=loan.repayments[idx]; const entryId=r.financialEntryId; loan.repayments.splice(idx,1);
+  entries=entries.filter(e=>!(e.source==="loan_repayment"&&(e.id===entryId||(e.loanId===loanId&&e.repaymentId===repaymentId))));
+  saveEntries();saveLoans();renderLoansManageList();render();
+  return{ok:true};
 }
-
 function renderLoansManageList(){
   const el = document.getElementById("loansManageList");
   if(!loans.length){
@@ -6076,8 +6334,8 @@ function renderLoansManageList(){
       const accIdxStr = accounts.length===1 ? "1" : prompt(`เงินเข้าบัญชีไหน?\n${accNames}\nพิมพ์หมายเลข:`, "1");
       const accIdx = (parseInt(accIdxStr) || 1) - 1;
       const accountId = accounts[accIdx]?.id || accounts[0].id;
-      l.repayments.push({ id: makeId(), amount: Math.min(amt, outstanding), date: todayISO(), accountId });
-      saveLoans();
+      const result=createLoanRepayment(l.id, Math.min(amt, outstanding), accountId, todayISO());
+      if(!result.ok){ showToast("บันทึกเงินคืนไม่สำเร็จ"); return; }
       renderLoansManageList();
       render();
     });
@@ -6108,8 +6366,10 @@ function renderLoansManageList(){
   el.querySelectorAll(".delete-loan-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       if(!confirm("ลบรายการเงินให้ยืมนี้ใช่ไหม? (เงินที่หักออกจากบัญชีไปแล้วจะถูกคืนกลับเข้าบัญชี)")) return;
-      loans = loans.filter(x => x.id !== btn.dataset.id);
-      saveLoans();
+      const loanId=btn.dataset.id;
+      entries=entries.filter(e=>!(e.source==="loan_repayment"&&e.loanId===loanId));
+      loans = loans.filter(x => x.id !== loanId);
+      saveEntries(); saveLoans();
       renderLoansManageList();
       render();
     });
@@ -6189,6 +6449,8 @@ document.getElementById("addLoanBtn").addEventListener("click", () => {
   renderLoansManageList();
   render();
 });
+
+syncLoanRepaymentEntries();
 
 // ===== Milestone 5: Debt Management Engine — UI =====
 function renderDebtsManageList(){
@@ -7621,6 +7883,20 @@ body.ux-chat-active #ux-chat{height:calc(var(--ux-vv-height,100dvh) - var(--ux-t
 body.ux-chat-active .ux-chat-panel{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
 body.ux-chat-active .ux-chat-panel .ai-analyst-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;}
 body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;position:relative!important;z-index:3!important;}
+
+/* Transaction tabs: text is its own stacking layer; active paint sits behind it. */
+#typeToggle{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;align-items:stretch!important;padding:4px!important;overflow:hidden!important;isolation:isolate!important;}
+#typeToggle .type-btn{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;height:44px!important;padding:0 6px!important;box-sizing:border-box!important;position:relative!important;isolation:isolate!important;overflow:visible!important;text-overflow:clip!important;z-index:0!important;}
+#typeToggle .type-btn::before{content:"";position:absolute;inset:0;border-radius:9999px;z-index:-1;pointer-events:none;}
+#typeToggle .type-btn.active-expense::before{background:var(--expense);}
+#typeToggle .type-btn.active-income::before{background:var(--income);}
+#typeToggle .type-btn.active-saving::before{background:var(--saving);}
+#typeToggle .type-btn.active-transfer::before{background:var(--transfer);}
+#typeToggle .type-btn-label{position:relative;z-index:1;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.1;}
+#typeToggle .type-btn.active-expense,#typeToggle .type-btn.active-income,#typeToggle .type-btn.active-saving{color:#fff!important;background:transparent!important;}
+#typeToggle .type-btn.active-transfer{color:#101018!important;background:transparent!important;}
+@media(max-width:380px){#typeToggle .type-btn{font-size:11.5px!important;padding:0 3px!important;} }
+
 </style>
 <script id="vaultet-production-audit-runtime">
 (function(){
@@ -7666,5 +7942,80 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
 })();
 </script>
 
+<style id="vaultet-round11-mobile-tabs-final">
+/* Round 11 mobile tabs */
+/* Round 11: transaction tabs — one box, one text layer, no pseudo-element stacking. */
+#typeToggle{
+  display:flex!important;
+  align-items:stretch!important;
+  width:100%!important;
+  gap:4px!important;
+  padding:4px!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#typeToggle .type-btn{
+  flex:1 1 0!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0 5px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  color:var(--faint)!important;
+  position:relative!important;
+  isolation:auto!important;
+  overflow:hidden!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  text-shadow:none!important;
+  z-index:1!important;
+}
+#typeToggle .type-btn::before,
+#typeToggle .type-btn::after{content:none!important;display:none!important;}
+#typeToggle .type-btn-label{
+  position:static!important;
+  display:block!important;
+  flex:0 1 auto!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  line-height:1.15!important;
+  pointer-events:none!important;
+}
+#typeToggle .type-btn.active-expense{background:var(--expense)!important;color:#fff!important;}
+#typeToggle .type-btn.active-income{background:var(--income)!important;color:#fff!important;}
+#typeToggle .type-btn.active-saving{background:var(--saving)!important;color:#fff!important;}
+#typeToggle .type-btn.active-transfer{background:var(--transfer)!important;color:#101018!important;}
+@media(max-width:390px){
+  #typeToggle{gap:3px!important;padding:3px!important;}
+  #typeToggle .type-btn{height:42px!important;min-height:42px!important;padding:0 3px!important;font-size:11.5px!important;}
+}
+
+</style>
+<style id="vaultet-round12-tabs-paint-order">
+/* Round 12: final paint-order fix. The active surface is a pseudo-layer behind the label.
+   No positional offsets or fixed-width assumptions. */
+#typeToggle{display:flex!important;align-items:stretch!important;gap:4px!important;overflow:hidden!important;box-sizing:border-box!important;}
+#typeToggle .type-btn{position:relative!important;isolation:isolate!important;z-index:0!important;flex:1 1 0!important;width:0!important;min-width:0!important;max-width:none!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;background:transparent!important;color:var(--faint)!important;overflow:hidden!important;}
+#typeToggle .type-btn::before{content:""!important;display:block!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background:transparent;z-index:-1!important;pointer-events:none!important;}
+#typeToggle .type-btn.active-expense::before{background:var(--expense)!important;}
+#typeToggle .type-btn.active-income::before{background:var(--income)!important;}
+#typeToggle .type-btn.active-saving::before{background:var(--saving)!important;}
+#typeToggle .type-btn.active-transfer::before{background:var(--transfer)!important;}
+#typeToggle .type-btn.active-expense,#typeToggle .type-btn.active-income,#typeToggle .type-btn.active-saving{color:#fff!important;background:transparent!important;}
+#typeToggle .type-btn.active-transfer{color:#101018!important;background:transparent!important;}
+#typeToggle .type-btn-label{position:relative!important;z-index:1!important;display:block!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.2!important;color:inherit!important;opacity:1!important;-webkit-text-fill-color:currentColor!important;}
+</style>
 </body>
 </html>
