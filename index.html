@@ -8128,7 +8128,9 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
 
 /* Fixed-shell keyboard contract also applies to browser/Android speech-to-text keyboards. */
 @media(max-width:600px){
-  body.ux-chat-active .ux-shell{position:fixed!important;left:0!important;right:0!important;top:0!important;}
+  /* Regression fix: keep the app chrome in normal flow. The page itself is the fixed shell;
+     this lets the AI header occupy real layout space and prevents the composer from drifting. */
+  body.ux-chat-active .ux-shell{position:relative!important;left:auto!important;right:auto!important;top:auto!important;z-index:100!important;display:block!important;}
   body.ux-chat-active #ux-chat{padding-top:0!important;}
   body.ux-chat-active .ai-chat-input-row{padding-bottom:4px!important;}
   body.ux-chat-active #aiChatInput{min-width:0!important;}
@@ -8146,6 +8148,69 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
 #typeToggle .type-btn.active-saving{background:var(--saving)!important;color:#fff!important;}
 #typeToggle .type-btn.active-transfer{background:var(--transfer)!important;color:#101018!important;}
 #typeToggle .type-btn-label{position:static!important;z-index:auto!important;display:block!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:inherit!important;-webkit-text-fill-color:currentColor!important;}
+</style>
+<style id="vaultet-regression-fix-only">
+/* 1) AI Advisor header must remain visible and in-flow on the dedicated chat page. */
+@media(max-width:600px){
+  body.ux-chat-active .ux-shell{
+    position:relative!important;
+    display:block!important;
+    z-index:100!important;
+  }
+  body.ux-chat-active .ux-topbar{
+    display:grid!important;
+  }
+  body.ux-chat-active .ux-brand-page{
+    display:block!important;
+  }
+
+  /* 2) Composer sits naturally at the bottom of the chat panel, immediately above the nav. */
+  body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel{
+    padding-bottom:calc(var(--ux-bottom-nav-space) + env(safe-area-inset-bottom))!important;
+  }
+  body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{
+    margin-bottom:0!important;
+  }
+
+  /* 3) Keyboard / speech-to-text: fixed page background, only the chat viewport responds. */
+  body.ux-chat-active{
+    position:fixed!important;
+    inset:0!important;
+    width:100%!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+  body.ux-chat-active .page{
+    height:var(--ux-vv-height,100dvh)!important;
+    max-height:var(--ux-vv-height,100dvh)!important;
+    overflow:hidden!important;
+  }
+  body.ux-chat-active #ux-chat{
+    height:calc(var(--ux-vv-height,100dvh) - var(--ux-topbar-space))!important;
+    max-height:calc(var(--ux-vv-height,100dvh) - var(--ux-topbar-space))!important;
+    overflow:hidden!important;
+  }
+  body.ux-chat-active .ux-chat-panel{
+    overflow:hidden!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  body.ux-chat-active .ux-chat-panel .ai-analyst-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+  }
+  body.ux-chat-active .ux-chat-panel .ai-chat-input-row{
+    flex:0 0 auto!important;
+    position:relative!important;
+    z-index:3!important;
+  }
+  body.ux-chat-active.ux-keyboard-open .ux-bottom-nav{display:none!important;}
+  body.ux-chat-active.ux-keyboard-open .ux-chat-panel{
+    padding-bottom:8px!important;
+  }
+}
 </style>
 <style id="vaultet-final-advisor-ux-polish-2">
 .ai-chat-link-btn{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;}
