@@ -1458,7 +1458,7 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
     </div>
 
     <div class="networth-card" id="aiProactiveCard" style="display:none; padding:14px 40px 14px 16px; border-width:1.5px;">
-      <button class="icon-btn" id="aiProactiveRefreshBtn" type="button" aria-label="รีเฟรชการวิเคราะห์" title="รีเฟรชการวิเคราะห์" style="position:absolute; top:8px; right:8px;">🔄</button>
+      <button class="icon-btn ai-icon-btn" id="aiProactiveRefreshBtn" type="button" aria-label="รีเฟรชการวิเคราะห์" title="รีเฟรชการวิเคราะห์" style="position:absolute; top:8px; right:8px;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4L4 9"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14.7 4L20 15"/><path d="M20 19v-4h-4"/></svg></button>
       <div style="display:flex; gap:8px; align-items:flex-start;">
         <span id="aiProactiveIcon" style="font-size:16px; line-height:1.5;">💡</span>
         <div id="aiProactiveBody" style="font-size:13px; line-height:1.55; color:var(--ink); flex:1; min-width:0;"></div>
@@ -1502,7 +1502,7 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
       <button class="backup-link" id="exportBtn">สำรองข้อมูล</button>
       <button class="backup-link" id="importBtn">กู้คืนข้อมูล</button>
       <input type="file" id="importFile" accept=".json" style="display:none" />
-      <button class="settings-icon-btn" id="settingsBtn" type="button" title="ตั้งค่า AI" aria-label="ตั้งค่า AI">⚙️</button>
+      <button class="settings-icon-btn ai-icon-btn" id="settingsBtn" type="button" title="ตั้งค่า AI" aria-label="ตั้งค่า AI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm8 3.8c0-.5 0-1-.1-1.5l2-1.5-2-3.4-2.3.9c-.8-.7-1.7-1.2-2.7-1.5L14.5 2h-5l-.4 2.6c-1 .3-1.9.8-2.7 1.5l-2.3-.9-2 3.4 2 1.5A8.3 8.3 0 0 0 4 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.4 2.3-.9c.8.7 1.7 1.2 2.7 1.5l.4 2.6h5l.4-2.6c1-.3 1.9-.8 2.7-1.5l2.3.9 2-3.4-2-1.5c.1-.5.1-1 .1-1.5Z"/></svg></button>
     </div>
   </div>
 
@@ -1601,11 +1601,18 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
 </div>
 
 <div class="page-anchor">
-  <button class="fab-ai" id="aiFabBtn" type="button" title="พิมพ์รายการด้วยภาษาพูด" aria-label="พิมพ์รายการด้วยภาษาพูด">✨</button>
+  <button class="fab-ai" id="aiFabBtn" type="button" title="พิมพ์รายการด้วยภาษาพูด" aria-label="พิมพ์รายการด้วยภาษาพูด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.2 5.1L18 10l-4.8 1.9L12 17l-1.2-5.1L6 10l4.8-1.9L12 3Z"/><path d="m19 15 .6 2.4L22 18l-2.4.6L19 21l-.6-2.4L16 18l2.4-.6L19 15Z"/></svg></button>
   <button class="fab" id="fabBtn">+</button>
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="ai-completion-notice" id="aiCompletionNotice" role="status" aria-live="polite">
+  <button type="button" class="ai-completion-main" id="aiCompletionOpenBtn">
+    <span class="ai-completion-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.2 5.1L18 10l-4.8 1.9L12 17l-1.2-5.1L6 10l4.8-1.9L12 3Z"/></svg></span>
+    <span><strong>AI Advisor ตอบแล้ว</strong><small>แตะเพื่อกลับไปดูคำตอบ</small></span>
+  </button>
+  <button type="button" class="ai-completion-dismiss" id="aiCompletionDismissBtn" aria-label="ปิด">×</button>
+</div>
 
 <div class="overlay" id="overlay">
   <div class="sheet-modal" onclick="event.stopPropagation()">
@@ -1697,8 +1704,9 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
       </div>
       <label class="field-label" style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13px; margin-top:14px; cursor:pointer;">
         <input type="checkbox" id="gdriveAutoSyncToggle" style="width:16px;height:16px;margin:0;" />
-        สำรองอัตโนมัติทุกครั้งที่ข้อมูลเปลี่ยน
+        สำรองอัตโนมัติเมื่อข้อมูลเปลี่ยน (ขณะมีสิทธิ์ Drive ใช้งานได้)
       </label>
+      <div class="gdrive-auto-status" id="gdriveAutoStatus">ยังไม่ได้เปิด Auto Backup</div>
     </div>
 
     <div class="settings-card">
@@ -1796,7 +1804,7 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
     <p class="ai-hint">พิมพ์เป็นภาษาพูดได้เลย เช่น รายรับ รายจ่าย เงินออม โอนเงินข้ามบัญชี หรือให้เพื่อนยืมเงิน</p>
     <div class="ai-input-error" id="aiInputError"></div>
     <button id="aiProcessBtn">ประมวลผล</button>
-    <button type="button" class="ai-chat-link-btn" id="openChatDirectBtn">💬 หรือคุยแบบอิสระกับที่ปรึกษาการเงิน (ไม่ต้องเป็นคำสั่ง) →</button>
+    <button type="button" class="ai-chat-link-btn" id="openChatDirectBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H9l-4 4V5Z"/></svg><span>หรือคุยแบบอิสระกับที่ปรึกษาการเงิน (ไม่ต้องเป็นคำสั่ง) →</span></button>
   </div>
 </div>
 
@@ -1855,9 +1863,9 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
     <div class="modal-header">
       <span class="modal-title">ที่ปรึกษาการเงิน AI</span>
       <div style="display:flex; align-items:center; gap:6px;">
-        <button class="icon-btn" id="aiAdvisorSettingsBtn" type="button" title="ปรับบุคลิกและรูปแบบคำตอบ AI">⚙️</button>
-        <button class="icon-btn" id="aiChatHistoryBtn" type="button" title="แชททั้งหมด">📜</button>
-        <button class="icon-btn" id="clearAiChatBtn" type="button" title="ล้างข้อความในแชทนี้">🗑️</button>
+        <button class="icon-btn ai-icon-btn" id="aiAdvisorSettingsBtn" type="button" title="ปรับบุคลิกและรูปแบบคำตอบ AI" aria-label="ตั้งค่า AI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm8 3.8c0-.5 0-1-.1-1.5l2-1.5-2-3.4-2.3.9c-.8-.7-1.7-1.2-2.7-1.5L14.5 2h-5l-.4 2.6c-1 .3-1.9.8-2.7 1.5l-2.3-.9-2 3.4 2 1.5A8.3 8.3 0 0 0 4 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.4 2.3-.9c.8.7 1.7 1.2 2.7 1.5l.4 2.6h5l.4-2.6c1-.3 1.9-.8 2.7-1.5l2.3.9 2-3.4-2-1.5c.1-.5.1-1 .1-1.5Z"/></svg></button>
+        <button class="icon-btn ai-icon-btn" id="aiChatHistoryBtn" type="button" title="แชททั้งหมด" aria-label="แชททั้งหมด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v11H8a2 2 0 0 1-2-2V4Z"/><path d="M6 7H4v11a2 2 0 0 0 2 2h10"/><path d="M9 8h7M9 12h7"/></svg></button>
+        <button class="icon-btn ai-icon-btn" id="clearAiChatBtn" type="button" title="ล้างข้อความในแชทนี้" aria-label="ล้างข้อความในแชทนี้"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
         <button class="close-btn" id="closeAiAnalystBtn">✕</button>
       </div>
     </div>
@@ -2096,6 +2104,7 @@ let gdriveTokenClient = null;
 let gdriveAccessToken = null; // เก็บใน memory เท่านั้น ไม่เขียนลง localStorage
 let gdriveAccessTokenExpiry = 0;
 let gdriveAutoSyncTimer = null;
+let gdriveLastAutoError = "";
 let gdriveSyncBusy = false;
 
 function initGDriveTokenClient(){
@@ -2254,6 +2263,13 @@ function scheduleGDriveAutoSync(){
     runGDriveSync(true);
   }, 4000);
 }
+function scheduleGDriveAutoSyncIfReady(){
+  if(localStorage.getItem(GDRIVE_AUTOSYNC_KEY)==="1" && gdriveAccessToken && Date.now()<gdriveAccessTokenExpiry){
+    scheduleGDriveAutoSync();
+  }
+}
+window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleGDriveAutoSyncIfReady();});
+window.addEventListener('focus',scheduleGDriveAutoSyncIfReady);
 // silent=true คือเรียกจาก auto-sync เบื้องหลัง (ห้ามโชว์ toast ถ้าพลาด แค่อัปเดตสถานะเงียบๆ ให้ผู้ใช้เห็นตอนเข้าตั้งค่า)
 async function runGDriveSync(silent){
   // Never request Google OAuth from a background timer.
@@ -2264,9 +2280,12 @@ async function runGDriveSync(silent){
   gdriveSyncBusy = true;
   try{
     await gdriveUploadBackup();
+    gdriveLastAutoError="";
     if(!silent) showToast("สำรองขึ้น Google Drive แล้ว");
   }catch(e){
-    if(!silent) showToast("สำรองขึ้น Drive ไม่สำเร็จ — ลองกดเชื่อมต่อใหม่");
+    if(String(e?.message||e).includes("upload_failed_401") || String(e?.message||e).includes("upload_failed_403")){ gdriveAccessToken=null; gdriveAccessTokenExpiry=0; }
+    gdriveLastAutoError = (String(e?.message||e).includes("401") || String(e?.message||e).includes("403")) ? "Auto Backup ใช้งานไม่ได้ — ต้องเชื่อมต่อ Google Drive ใหม่" : "Auto Backup ล่าสุดไม่สำเร็จ — ตรวจสอบการเชื่อมต่อ Google Drive";
+    if(!silent) showToast("สำรองขึ้น Drive ไม่สำเร็จ — ลองเชื่อมต่อ Google Drive ใหม่");
   }finally{
     gdriveSyncBusy = false;
     if(document.getElementById("settingsOverlay").classList.contains("open")) refreshGDriveStatus();
@@ -3974,8 +3993,15 @@ function refreshGDriveStatus(){
   document.getElementById("gdriveDisconnectBtn").style.display = (clientId || fileId) ? "block" : "none";
   document.getElementById("gdriveSyncNowBtn").disabled = !clientId;
   document.getElementById("gdriveRestoreBtn").disabled = !fileId;
-  document.getElementById("gdriveAutoSyncToggle").checked = localStorage.getItem(GDRIVE_AUTOSYNC_KEY) === "1";
+  const autoOn=localStorage.getItem(GDRIVE_AUTOSYNC_KEY)==="1";
+  const tokenReady=!!(gdriveAccessToken && Date.now()<gdriveAccessTokenExpiry);
+  document.getElementById("gdriveAutoSyncToggle").checked = autoOn;
   document.getElementById("gdriveAutoSyncToggle").disabled = !clientId;
+  const autoStatus=document.getElementById("gdriveAutoStatus");
+  if(autoStatus){
+    autoStatus.textContent=!autoOn ? "Auto Backup ปิดอยู่" : gdriveLastAutoError ? gdriveLastAutoError : tokenReady ? "Auto Backup พร้อมทำงานในเซสชันนี้" : fileId ? "Auto Backup เปิดอยู่ แต่ต้องเชื่อมต่อ Google Drive ใหม่ก่อนจึงจะสำรองเบื้องหลังได้" : "Auto Backup เปิดอยู่ แต่ยังไม่มีไฟล์สำรองบน Drive";
+    autoStatus.dataset.state=!autoOn?'off':gdriveLastAutoError?'error':tokenReady?'ready':'needs-auth';
+  }
 }
 document.getElementById("saveGDriveClientIdBtn").addEventListener("click", () => {
   const val = document.getElementById("gdriveClientIdInput").value.trim();
@@ -4023,6 +4049,7 @@ document.getElementById("gdriveRestoreBtn").addEventListener("click", async () =
 document.getElementById("gdriveAutoSyncToggle").addEventListener("change", (e) => {
   localStorage.setItem(GDRIVE_AUTOSYNC_KEY, e.target.checked ? "1" : "0");
   if(e.target.checked) scheduleGDriveAutoSync();
+  refreshGDriveStatus();
 });
 
 // ===== AI Layer (Milestone 3): Profile / Memory — storage helpers =====
@@ -4077,7 +4104,7 @@ function renderAIGoalsList(){
         <span class="goal-row-name">${escapeHtml(g.name)}</span>
         <span class="goal-row-meta mono">฿${fmt(g.targetAmount)}${g.deadline ? ` · ครบกำหนด ${dayLabel(g.deadline)}` : ""}</span>
       </div>
-      <button class="icon-btn delete-ai-goal-btn" data-id="${g.id}" aria-label="ลบเป้าหมาย">🗑</button>
+      <button class="icon-btn ai-icon-btn delete-ai-goal-btn" data-id="${g.id}" aria-label="ลบเป้าหมาย"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
     </div>
   `).join("");
   el.querySelectorAll(".delete-ai-goal-btn").forEach(btn => {
@@ -4138,7 +4165,7 @@ function renderAIMemoryList(){
         <div class="memory-row-text">${escapeHtml(m.text)}</div>
         <div class="memory-row-meta">${m.createdAt ? chatTimeLabel(m.createdAt) : ""}</div>
       </div>
-      <button class="icon-btn delete-ai-memory-btn" data-id="${m.id}" aria-label="ลบความจำนี้">🗑</button>
+      <button class="icon-btn ai-icon-btn delete-ai-memory-btn" data-id="${m.id}" aria-label="ลบความจำนี้"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M6 7l1 14h10l-1-14"/></svg></button>
     </div>
   `).join("");
   el.querySelectorAll(".delete-ai-memory-btn").forEach(btn => {
@@ -4743,7 +4770,10 @@ function buildFinancialAnalystSystemPrompt(snapshot, profile){
   const lines = [
     "คุณคือ Personal Financial Manager ส่วนตัวของผู้ใช้แอปการเงิน Vaultet ทำหน้าที่ตอบคำถาม/วิเคราะห์สถานะการเงินของผู้ใช้",
     "ตอบโดยอิงจากตัวเลขใน Financial Snapshot ด้านล่างเท่านั้น ห้ามคำนวณตัวเลขเอง ห้ามประมาณ/เดาตัวเลขที่ไม่มีอยู่ใน Snapshot",
-    "ตอบสั้น กระชับ ตรงประเด็น เป็นภาษาไทย แยกแต่ละประเด็นด้วยเครื่องหมายขีด (-) ขึ้นบรรทัดใหม่ ไม่ต้องมีคำนำหรือคำลงท้ายยืดยาว",
+    "ตอบให้สั้นก่อนเสมอ: โดยทั่วไป 1-4 ประโยค หรือไม่เกิน 3 bullet เมื่อมีหลายประเด็น; อย่าเปิดรายงานการเงินเต็มรูปแบบถ้าผู้ใช้ไม่ได้ขอ",
+    "ใช้ภาษาคนที่คุยง่ายและเป็นธรรมชาติ แต่ยังแม่นและมืออาชีพ; หลีกเลี่ยงศัพท์ corporate/financial jargon ที่ไม่จำเป็น ไม่ต้องมีคำนำหรือคำลงท้าย",
+    "โครงสร้างตามธรรมชาติ: คำตอบตรงๆ → เหตุผลสั้นๆ ถ้าจำเป็น → สิ่งที่ควรทำต่อถ้ามี; ไม่จำเป็นต้องมีครบทุกส่วนทุกครั้ง",
+    "ถ้าการเงินปกติ ให้บอกสั้นๆ ว่าปกติ/ยังไม่มีอะไรน่ากังวล และอย่าสร้างปัญหาเพื่อให้ดูฉลาด",
     "ใช้ **ข้อความ** ล้อมรอบตัวเลขเงินหรือประเด็นสำคัญที่ต้องการเน้นให้ผู้ใช้เห็นชัด",
     "ถ้าคำถามของผู้ใช้ต้องการข้อมูลที่ไม่มีอยู่ใน Snapshot ให้บอกตรงๆ ว่าไม่มีข้อมูลส่วนนั้น อย่าสร้างตัวเลขขึ้นมาเอง",
     "ถ้า Snapshot มี queryContext.mode=affordability ให้ใช้ผลคำนวณนั้นโดยตรงในการอธิบายว่าเงินก้อนนี้กระทบ cash, known obligations และ minimum reserve อย่างไร ห้ามคำนวณซ้ำเอง",
@@ -5024,12 +5054,21 @@ function renderAiChatBubbles(){
     const isUser = m.role === "user";
     const bubbleCls = isUser ? "ai-chat-user" : "ai-chat-model";
     const inner = isUser ? escapeHtml(m.text) : simpleMarkdownToHtml(m.text);
+    const icons={
+      edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5Zm11.8-9.9 1.6-1.6a1 1 0 0 1 1.4 0l.2.2a1 1 0 0 1 0 1.4l-1.6 1.6-1.6-1.6Z"/></svg>',
+      copy:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+      refresh:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4L4 9"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14.7 4L20 15"/><path d="M20 19v-4h-4"/></svg>'
+    };
     const actions = isUser
-      ? `<div class="ai-chat-actions"><button type="button" data-action="edit" data-idx="${idx}">✏️ แก้ไข</button></div>`
-      : `<div class="ai-chat-actions"><button type="button" data-action="copy" data-idx="${idx}">📋 คัดลอก</button>${idx === lastModelIdx ? `<button type="button" data-action="regenerate" data-idx="${idx}">🔄 ตอบใหม่</button>` : ""}</div>`;
+      ? `<div class="ai-chat-actions"><button type="button" data-action="edit" data-idx="${idx}">${icons.edit}<span>แก้ไข</span></button></div>`
+      : `<div class="ai-chat-actions"><button type="button" data-action="copy" data-idx="${idx}">${icons.copy}<span>คัดลอก</span></button>${idx === lastModelIdx ? `<button type="button" data-action="regenerate" data-idx="${idx}">${icons.refresh}<span>ตอบใหม่</span></button>` : ""}</div>`;
     return `<div class="ai-chat-msg role-${m.role}" data-idx="${idx}"><div class="ai-chat-bubble ${bubbleCls}">${inner}</div>${actions}</div>`;
   }).join("");
   body.scrollTop = body.scrollHeight;
+  const activeChatId=loadAllChats().activeId;
+  if(aiRequestState?.status==='pending' && aiRequestState.chatId===activeChatId){
+    showAiChatTyping();
+  }
 }
 
 // ตัวบอกสถานะ "AI กำลังพิมพ์" — เป็น DOM ชั่วคราว ไม่เก็บลงประวัติ
@@ -5098,7 +5137,11 @@ async function generateChatReply(priorHistory, userText, snapshot, profile, sign
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] } }),
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: { temperature: 0.35, maxOutputTokens: 360 }
+        }),
         signal
       },
       0 // แชทต้องตอบไว: ถ้า 429 ให้สลับคีย์สำรองทันที ไม่รอ 1.5s/3s
@@ -5188,7 +5231,8 @@ function buildProactiveSystemPrompt(evalResult, snapshot, profile){
     "แยก regular/non-loan income ออกจาก loan repayment เสมอ; loan repayment คือการเปลี่ยน receivable กลับเป็น cash ไม่ใช่ earned income",
     "ถ้าข้อมูลย้อนหลังไม่พอสำหรับ baseline ให้บอกว่าไม่พอ ห้ามสร้างคำว่า unusual จากข้อมูลน้อย",
     "ถ้าเป็น forecast ให้ระบุสมมติฐานและใช้คำว่า estimated/based on current pattern ไม่ใช่คำรับรอง",
-    "เขียนแค่ 1-2 ประโยค กระชับ ตรงประเด็น เป็นภาษาไทย ไม่ต้องมีคำนำหรือคำลงท้าย",
+    "เขียนแบบคนคุยกับเจ้าของเงินจริงๆ: สั้น กระชับ เป็นธรรมชาติ ไม่เป็นภาษารายงานบริษัท; โดยทั่วไป 1-3 ประโยค และใช้เฉพาะตัวเลขที่จำเป็น",
+    "ถ้าต้องแนะนำ ให้พูดสิ่งที่ควรทำต่อแบบ practical ไม่สั่งสอน ไม่ตื่นตูม; ถ้าไม่มีอะไรสำคัญ ให้บอกสั้นๆ ว่าทุกอย่างยังโอเค",
     "ใช้ **ตัวหนา** ล้อมรอบตัวเลขเงินหรือหมวดหมู่/รายการที่สำคัญที่สุดที่ต้องการเน้น",
     "อ้างอิงเฉพาะตัวเลขจาก Findings/Snapshot ด้านล่างเท่านั้น ห้ามคำนวณหรือสร้างตัวเลขขึ้นมาเอง",
     `เรื่องที่สำคัญที่สุดตอนนี้คือ: ${proactiveRuleLabel(evalResult.topRuleId)} (severity: ${evalResult.severity})`,
@@ -5408,6 +5452,25 @@ let proactiveCardBusy = false;
 let aiChatBusy = false;
 let aiChatAbortController = null;
 let aiChatEditingIndex = null; // ถ้าไม่ใช่ null แปลว่ากำลังแก้ไขข้อความเดิม index นี้อยู่ — ตอนส่งใหม่จะตัดประวัติตั้งแต่จุดนี้ก่อน
+// Request state อยู่ระดับ app/session ไม่ผูกกับหน้า Advisor เพื่อให้ loading อยู่ต่อเมื่อเปลี่ยนหน้า
+let aiRequestState = null;
+function getChatById(id){
+  const data=loadAllChats();
+  return data.chats.find(c=>c.id===id)||null;
+}
+function saveAIChatHistoryForChat(chatId, history){
+  if(!chatId) return false;
+  const data=loadAllChats();
+  const chat=data.chats.find(c=>c.id===chatId);
+  if(!chat) return false;
+  chat.messages=history.slice(-40);
+  chat.updatedAt=new Date().toISOString();
+  if(!chat.title) chat.title=chatTitleFrom(chat.messages);
+  saveAllChats(data);
+  return true;
+}
+function isAiRequestCurrent(requestId){ return !!(aiRequestState && aiRequestState.id===requestId && aiRequestState.status==='pending'); }
+function isAdvisorPageActive(){ return document.body.classList.contains('ux-chat-active'); }
 
 function renderProactiveCard(severity, text, state, errorInfo){
   const card = document.getElementById("aiProactiveCard");
@@ -5561,7 +5624,7 @@ function renderAiChatList(){
         <span class="ai-chat-list-title">${escapeHtml(title)}</span>
         <span class="ai-chat-list-meta">${c.messages.length} ข้อความ · ${chatTimeLabel(c.updatedAt)}</span>
       </div>
-      <button class="icon-btn delete-ai-chat-btn" data-id="${c.id}" aria-label="ลบแชทนี้">🗑</button>
+      <button class="icon-btn ai-icon-btn delete-ai-chat-btn" data-id="${c.id}" aria-label="ลบแชทนี้"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
     </div>`;
   }).join("");
 
@@ -5668,6 +5731,26 @@ document.getElementById("resetAiAdvisorInstructionBtn")?.addEventListener("click
   if(aiAdvisorInstructionStatus) aiAdvisorInstructionStatus.textContent = "รีเซ็ตเป็นรูปแบบมาตรฐานแล้ว";
 });
 
+function hideAiCompletionNotification(){
+  document.getElementById('aiCompletionNotice')?.classList.remove('show');
+}
+function showAiCompletionNotification(chatId){
+  if(isAdvisorPageActive()) return;
+  const el=document.getElementById('aiCompletionNotice');
+  if(!el) return;
+  el.dataset.chatId=chatId||'';
+  el.classList.add('show');
+}
+function openAiCompletionChat(){
+  const el=document.getElementById('aiCompletionNotice');
+  const chatId=el?.dataset.chatId;
+  if(chatId && getChatById(chatId)){ switchToChat(chatId); }
+  hideAiCompletionNotification();
+  window.bancheeOpenChatPage?.();
+}
+document.getElementById('aiCompletionOpenBtn')?.addEventListener('click',openAiCompletionChat);
+document.getElementById('aiCompletionDismissBtn')?.addEventListener('click',hideAiCompletionNotification);
+
 // ส่งข้อความต่อเนื่องในหน้าต่างแชท (ไม่ผ่านการคัดกรองแบบหน้าพิมพ์รายการ — คุยได้อิสระเต็มที่)
 document.getElementById("aiChatSendBtn").addEventListener("click", async () => {
   // ถ้ากำลังรอ AI ตอบอยู่ ปุ่มนี้ทำหน้าที่เป็นปุ่ม "หยุด" แทน
@@ -5699,6 +5782,9 @@ document.getElementById("aiChatSendBtn").addEventListener("click", async () => {
   renderAiChatBubbles();
   input.value = "";
 
+  const requestId=makeId();
+  const requestChatId=loadAllChats().activeId;
+  aiRequestState={id:requestId,chatId:requestChatId,status:'pending',startedAt:Date.now(),userText:text};
   aiChatBusy = true;
   setAiChatSendBtnState(true);
   input.disabled = true;
@@ -5712,33 +5798,37 @@ document.getElementById("aiChatSendBtn").addEventListener("click", async () => {
   const aiElapsedMs = Math.round(performance.now() - aiRequestStartedAt);
   aiChatAbortController = null;
 
-  hideAiChatTyping();
+  if(!isAiRequestCurrent(requestId)) return;
+  aiRequestState.status=result.ok?'completed':(result.error==='aborted'?'cancelled':'error');
   aiChatBusy = false;
+  hideAiChatTyping();
   setAiChatSendBtnState(false);
   input.disabled = false;
-  input.focus();
 
   if(!result.ok){
-    if(result.error === "aborted") return; // ผู้ใช้กดยกเลิกเอง — ข้อความที่พิมพ์ไว้ยังอยู่ในประวัติ กดส่งใหม่ได้เลย ไม่ต้องโชว์ error แดง
+    if(result.error === "aborted"){ aiRequestState=null; renderAiChatBubbles(); return; }
     const label = aiErrorLabel(result);
     const codeLine = result.error ? ` (โค้ด: ${result.error}${result.status ? " HTTP " + result.status : ""})` : "";
     errBox.textContent = label + codeLine + " — ข้อความที่พิมพ์ไว้ยังอยู่ ลองกดส่งใหม่ได้เลย";
     errBox.style.display = "block";
+    aiRequestState=null;
+    renderAiChatBubbles();
     return;
   }
 
   const historyWithReply = historyWithUserMsg.concat([{ role:"model", text: processAiReplyForMemory(result.text) }]);
-  saveAIChatHistory(historyWithReply);
+  saveAIChatHistoryForChat(requestChatId, historyWithReply);
+  aiRequestState=null;
   renderAiChatBubbles();
   const latencyEl = document.createElement("div");
   latencyEl.className = "ai-chat-latency";
   latencyEl.textContent = `ตอบใน ${(aiElapsedMs/1000).toFixed(1)} วินาที`;
-  document.getElementById("aiAnalystBody")?.appendChild(latencyEl);
+  if(isAdvisorPageActive()) document.getElementById("aiAnalystBody")?.appendChild(latencyEl);
 
-  // ถ้าผู้ใช้ปิดหน้าต่างแชทไปดูอย่างอื่นในแอประหว่างรอ (ยังไม่ได้ออกจากแอป) ให้แจ้งเตือนว่าคำตอบพร้อมแล้ว
-  if(!document.body.classList.contains("ux-chat-active")){
+  // แจ้งเฉพาะเมื่อผู้ใช้ไม่ได้อยู่หน้า Advisor ตอนคำตอบเสร็จ และแจ้งครั้งเดียวต่อ request
+  if(!isAdvisorPageActive()){
     markAiChatUnread();
-    showToast("💬 ที่ปรึกษาการเงิน AI ตอบแล้ว");
+    showAiCompletionNotification(requestChatId);
   }
 });
 document.getElementById("aiChatInput").addEventListener("keydown", (e) => {
@@ -5756,6 +5846,9 @@ async function regenerateLastReply(priorHistory, userText){
   saveAIChatHistory(priorHistory.concat([{ role:"user", text: userText }]));
   renderAiChatBubbles();
 
+  const requestId=makeId();
+  const requestChatId=loadAllChats().activeId;
+  aiRequestState={id:requestId,chatId:requestChatId,status:'pending',startedAt:Date.now(),userText:userText};
   aiChatBusy = true;
   setAiChatSendBtnState(true);
   document.getElementById("aiChatInput").disabled = true;
@@ -5767,25 +5860,28 @@ async function regenerateLastReply(priorHistory, userText){
   const result = await generateChatReply(priorHistory, userText, snapshot, profile, aiChatAbortController.signal);
   aiChatAbortController = null;
 
+  if(!isAiRequestCurrent(requestId)) return;
+  aiRequestState.status=result.ok?'completed':(result.error==='aborted'?'cancelled':'error');
   hideAiChatTyping();
   aiChatBusy = false;
   setAiChatSendBtnState(false);
   document.getElementById("aiChatInput").disabled = false;
 
   if(!result.ok){
-    if(result.error === "aborted") return;
+    if(result.error === "aborted"){aiRequestState=null;renderAiChatBubbles();return;}
     const label = aiErrorLabel(result);
-    errBox.textContent = label + " — ลองกด 🔄 ตอบใหม่อีกครั้ง";
+    errBox.textContent = label + " — ลองตอบใหม่อีกครั้ง";
     errBox.style.display = "block";
-    return;
+    aiRequestState=null; renderAiChatBubbles(); return;
   }
 
-  saveAIChatHistory(priorHistory.concat([{ role:"user", text: userText }, { role:"model", text: processAiReplyForMemory(result.text) }]));
+  saveAIChatHistoryForChat(requestChatId,priorHistory.concat([{ role:"user", text: userText }, { role:"model", text: processAiReplyForMemory(result.text) }]));
+  aiRequestState=null;
   renderAiChatBubbles();
 
-  if(!document.getElementById("aiAnalystOverlay").classList.contains("open")){
+  if(!isAdvisorPageActive()){
     markAiChatUnread();
-    showToast("💬 ที่ปรึกษาการเงิน AI ตอบแล้ว");
+    showAiCompletionNotification(requestChatId);
   }
 }
 
@@ -7290,9 +7386,11 @@ const __baseVaultetRender=render;render=function(){__baseVaultetRender();renderB
   const closeChatBtn=document.getElementById('closeAiAnalystBtn');
   if(closeChatBtn) closeChatBtn.addEventListener('click',()=>go('home'));
   window.bancheeOpenChatPage=()=>{
+    hideAiCompletionNotification();
     if(typeof renderAiChatBubbles==='function') renderAiChatBubbles();
     clearAiChatUnread();
     go('chat');
+    if(aiRequestState?.status==='pending') setAiChatSendBtnState(true);
   };
   window.bancheeOpenChatFromList=()=>{
     document.getElementById('aiChatListOverlay')?.classList.remove('open');
@@ -8002,6 +8100,60 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
   #typeToggle .type-btn{height:42px!important;min-height:42px!important;padding:0 3px!important;font-size:11.5px!important;}
 }
 
+</style>
+<style id="vaultet-final-advisor-ux-polish">
+/* AI controls: one clean icon system, no emoji glyphs. */
+.ai-icon-btn{display:inline-grid!important;place-items:center!important;width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;border-radius:10px!important;}
+.ai-icon-btn svg{width:17px!important;height:17px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+.ai-chat-actions button{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-height:32px!important;padding:5px 7px!important;font-size:11px!important;line-height:1!important;}
+.ai-chat-actions button svg{width:14px!important;height:14px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;flex:0 0 14px;}
+#aiAnalystOverlay .modal-header>div{display:flex!important;align-items:center!important;gap:5px!important;}
+#aiAnalystOverlay .ai-chat-input-row{min-height:46px!important;box-sizing:border-box!important;}
+#aiAnalystOverlay #aiChatSendBtn{flex:0 0 36px!important;align-self:center!important;}
+#aiAnalystOverlay .ai-chat-input-row button{margin:0!important;}
+#aiAnalystOverlay .ai-chat-input-row button::after{line-height:1!important;}
+#aiAnalystOverlay #aiChatSendBtn.stop-btn::after{font-size:12px!important;}
+
+/* AI completion: top corner, quiet, non-blocking, one notification per request. */
+.ai-completion-notice{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:1600;width:min(340px,calc(100vw - 24px));display:flex;align-items:stretch;gap:4px;padding:5px;background:rgba(24,24,27,.96);border:1px solid rgba(255,255,255,.09);border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.28);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .18s ease,transform .18s ease;}
+.ai-completion-notice.show{opacity:1;transform:translateY(0);pointer-events:auto;}
+.ai-completion-main{flex:1;min-width:0;display:flex;align-items:center;gap:9px;text-align:left;border:0;background:transparent;color:var(--ink);padding:8px 7px;border-radius:10px;font:inherit;cursor:pointer;}
+.ai-completion-main:active{background:rgba(255,255,255,.06);}
+.ai-completion-icon{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;background:rgba(29,185,84,.12);color:var(--income);}
+.ai-completion-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.ai-completion-main strong{display:block;font-size:12px;line-height:1.25;}
+.ai-completion-main small{display:block;margin-top:2px;color:var(--faint);font-size:9.5px;line-height:1.3;}
+.ai-completion-dismiss{width:30px;min-width:30px;height:30px;align-self:center;border:0;background:transparent;color:var(--faint);font-size:20px;line-height:1;display:grid;place-items:center;border-radius:9px;cursor:pointer;}
+.ai-completion-dismiss:active{background:rgba(255,255,255,.06);}
+
+/* Fixed-shell keyboard contract also applies to browser/Android speech-to-text keyboards. */
+@media(max-width:600px){
+  body.ux-chat-active .ux-shell{position:fixed!important;left:0!important;right:0!important;top:0!important;}
+  body.ux-chat-active #ux-chat{padding-top:0!important;}
+  body.ux-chat-active .ai-chat-input-row{padding-bottom:4px!important;}
+  body.ux-chat-active #aiChatInput{min-width:0!important;}
+}
+
+/* Profile is the home for personal + financial profile + goals; Settings stays app configuration. */
+#settingsOverlay .settings-card:has(#aiProfileNickname),
+#settingsOverlay .settings-card:has(#aiGoalsList){display:none!important;}
+
+/* Transaction tabs: direct button paint, no pseudo stacking or z-index tricks. */
+#typeToggle .type-btn::before,#typeToggle .type-btn::after{display:none!important;content:none!important;}
+#typeToggle .type-btn{position:relative!important;z-index:0!important;isolation:auto!important;flex:1 1 0!important;width:auto!important;min-width:0!important;max-width:none!important;overflow:hidden!important;box-sizing:border-box!important;background:transparent!important;}
+#typeToggle .type-btn.active-expense{background:var(--expense)!important;color:#fff!important;}
+#typeToggle .type-btn.active-income{background:var(--income)!important;color:#fff!important;}
+#typeToggle .type-btn.active-saving{background:var(--saving)!important;color:#fff!important;}
+#typeToggle .type-btn.active-transfer{background:var(--transfer)!important;color:#101018!important;}
+#typeToggle .type-btn-label{position:static!important;z-index:auto!important;display:block!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:inherit!important;-webkit-text-fill-color:currentColor!important;}
+</style>
+<style id="vaultet-final-advisor-ux-polish-2">
+.ai-chat-link-btn{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;}
+.ai-chat-link-btn svg{width:16px!important;height:16px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;flex:0 0 16px;}
+.gdrive-auto-status{margin-top:8px;padding:7px 9px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid var(--line);color:var(--faint);font-size:10px;line-height:1.4;}
+.gdrive-auto-status[data-state="ready"]{color:var(--income);background:rgba(29,185,84,.07);}
+.gdrive-auto-status[data-state="error"],.gdrive-auto-status[data-state="needs-auth"]{color:#d8a54b;background:rgba(216,165,75,.07);}
+.gdrive-auto-status[data-state="off"]{opacity:.8;}
 </style>
 <style id="vaultet-round12-tabs-paint-order">
 /* Round 12: final paint-order fix. The active surface is a pseudo-layer behind the label.
