@@ -1804,7 +1804,6 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
     <p class="ai-hint">พิมพ์เป็นภาษาพูดได้เลย เช่น รายรับ รายจ่าย เงินออม โอนเงินข้ามบัญชี หรือให้เพื่อนยืมเงิน</p>
     <div class="ai-input-error" id="aiInputError"></div>
     <button id="aiProcessBtn">ประมวลผล</button>
-    <button type="button" class="ai-chat-link-btn" id="openChatDirectBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H9l-4 4V5Z"/></svg><span>หรือคุยแบบอิสระกับที่ปรึกษาการเงิน (ไม่ต้องเป็นคำสั่ง) →</span></button>
   </div>
 </div>
 
@@ -1866,7 +1865,6 @@ body.ux-chat-active:not(.ux-keyboard-open) .ux-chat-panel .ai-chat-input-row{mar
         <button class="icon-btn ai-icon-btn" id="aiAdvisorSettingsBtn" type="button" title="ปรับบุคลิกและรูปแบบคำตอบ AI" aria-label="ตั้งค่า AI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm8 3.8c0-.5 0-1-.1-1.5l2-1.5-2-3.4-2.3.9c-.8-.7-1.7-1.2-2.7-1.5L14.5 2h-5l-.4 2.6c-1 .3-1.9.8-2.7 1.5l-2.3-.9-2 3.4 2 1.5A8.3 8.3 0 0 0 4 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.4 2.3-.9c.8.7 1.7 1.2 2.7 1.5l.4 2.6h5l.4-2.6c1-.3 1.9-.8 2.7-1.5l2.3.9 2-3.4-2-1.5c.1-.5.1-1 .1-1.5Z"/></svg></button>
         <button class="icon-btn ai-icon-btn" id="aiChatHistoryBtn" type="button" title="แชททั้งหมด" aria-label="แชททั้งหมด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v11H8a2 2 0 0 1-2-2V4Z"/><path d="M6 7H4v11a2 2 0 0 0 2 2h10"/><path d="M9 8h7M9 12h7"/></svg></button>
         <button class="icon-btn ai-icon-btn" id="clearAiChatBtn" type="button" title="ล้างข้อความในแชทนี้" aria-label="ล้างข้อความในแชทนี้"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
-        <button class="close-btn" id="closeAiAnalystBtn">✕</button>
       </div>
     </div>
     <div class="ai-advisor-settings-panel" id="aiAdvisorSettingsPanel">
@@ -5086,18 +5084,20 @@ function hideAiChatTyping(){
   const el = document.getElementById("aiChatTypingIndicator");
   if(el) el.remove();
 }
-// สลับปุ่ม "ส่ง" <-> "■ หยุด" ตามสถานะกำลังเรียก AI อยู่หรือไม่
+// สลับปุ่มส่ง/ยกเลิกตามสถานะกำลังเรียก AI — เปลี่ยนเฉพาะ presentation ไม่แตะ request behavior
 function setAiChatSendBtnState(isBusy){
   const btn = document.getElementById("aiChatSendBtn");
   if(!btn) return;
   if(isBusy){
-    btn.textContent = "■";
+    btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>';
     btn.classList.add("stop-btn");
-    btn.title = "หยุดการตอบ";
+    btn.title = "ยกเลิกการส่ง";
+    btn.setAttribute("aria-label","ยกเลิกการส่ง");
   }else{
-    btn.textContent = "ส่ง";
+    btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"/><path d="m13 6 6 6-6 6"/></svg>';
     btn.classList.remove("stop-btn");
-    btn.title = "";
+    btn.title = "ส่งข้อความ";
+    btn.setAttribute("aria-label","ส่งข้อความ");
   }
 }
 
@@ -5598,7 +5598,6 @@ function openAiAnalystSheet(query, analysisText){
 function closeAiAnalystSheet(){
   document.getElementById("aiAnalystOverlay").classList.remove("open");
 }
-document.getElementById("closeAiAnalystBtn").addEventListener("click", closeAiAnalystSheet);
 document.getElementById("aiAnalystOverlay").addEventListener("click", closeAiAnalystSheet);
 
 document.getElementById("clearAiChatBtn").addEventListener("click", (e) => {
@@ -5669,14 +5668,6 @@ document.getElementById("newAiChatBtn").addEventListener("click", () => {
   document.getElementById("aiAnalystOverlay").classList.add("open");
   clearAiChatUnread();
   document.getElementById("aiChatError").style.display = "none";
-});
-
-// ปุ่ม "คุยแบบอิสระ" ในหน้าพิมพ์รายการ — ข้ามการคัดกรองว่าเป็นรายการหรือคำถาม เปิดแชทตรงเลย
-document.getElementById("openChatDirectBtn").addEventListener("click", () => {
-  closeAiInputSheet();
-  renderAiChatBubbles();
-  document.getElementById("aiAnalystOverlay").classList.add("open");
-  clearAiChatUnread();
 });
 
 // คลิกปุ่ม แก้ไข/คัดลอก/ตอบใหม่ บนแต่ละข้อความ (event delegation — ปุ่มถูกสร้างใหม่ทุกครั้งที่ render)
@@ -7437,9 +7428,6 @@ const __baseVaultetRender=render;render=function(){__baseVaultetRender();renderB
     document.getElementById('aiAnalystOverlay')?.classList.remove('open');
   }
   // Redirect the free-chat link from the transaction AI sheet to the dedicated page.
-  const direct=document.getElementById('openChatDirectBtn');
-  if(direct) direct.addEventListener('click',(e)=>{ e.stopImmediatePropagation(); document.getElementById('aiInputOverlay')?.classList.remove('open'); openChatPage(); },true);
-
   // "+ แชทใหม่" should also return to the dedicated page, not the legacy bottom sheet.
   const newChat=document.getElementById('newAiChatBtn');
   if(newChat) newChat.addEventListener('click',(e)=>{
@@ -8023,14 +8011,9 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
   new MutationObserver(syncModalLock).observe(body,{subtree:true,attributes:true,attributeFilter:['class']});
   syncModalLock();
 
-  // A tab/session gets exactly one active chat. Closing the tab/app destroys sessionStorage;
-  // re-entry after a real new app session therefore gets a fresh chat while history remains.
-  try{
-    const SESSION_KEY='vaultet_active_chat_session_v2';
-    if(!sessionStorage.getItem(SESSION_KEY) && typeof createNewChat==='function'){
-      createNewChat(); sessionStorage.setItem(SESSION_KEY,'1');
-    }
-  }catch(e){}
+  // Advisor page entry never creates a new chat automatically.
+  // loadAllChats()/getActiveChat() already provide the existing chat (including an empty one);
+  // createNewChat() remains reserved for the explicit “แชทใหม่” action.
 
   // Make notification settings accessible even if an older inline handler is missing.
   window.toggleNotificationSettings=window.toggleNotificationSettings||function(){
@@ -8213,8 +8196,6 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
 }
 </style>
 <style id="vaultet-final-advisor-ux-polish-2">
-.ai-chat-link-btn{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;}
-.ai-chat-link-btn svg{width:16px!important;height:16px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;flex:0 0 16px;}
 .gdrive-auto-status{margin-top:8px;padding:7px 9px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid var(--line);color:var(--faint);font-size:10px;line-height:1.4;}
 .gdrive-auto-status[data-state="ready"]{color:var(--income);background:rgba(29,185,84,.07);}
 .gdrive-auto-status[data-state="error"],.gdrive-auto-status[data-state="needs-auth"]{color:#d8a54b;background:rgba(216,165,75,.07);}
@@ -8234,5 +8215,105 @@ body.ux-chat-active .ux-chat-panel .ai-chat-input-row{flex:0 0 auto!important;po
 #typeToggle .type-btn.active-transfer{color:#101018!important;background:transparent!important;}
 #typeToggle .type-btn-label{position:relative!important;z-index:1!important;display:block!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.2!important;color:inherit!important;opacity:1!important;-webkit-text-fill-color:currentColor!important;}
 </style>
+
+<style id="vaultet-final-ux-regression-fix">
+/* FINAL UX scope only: voice sheet tracks the visual viewport while the app background stays fixed. */
+@media(max-width:600px){
+  #aiInputOverlay{
+    position:fixed!important;
+    inset:0!important;
+    height:var(--ux-vv-height,100dvh)!important;
+    max-height:var(--ux-vv-height,100dvh)!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+    touch-action:none!important;
+  }
+  #aiInputOverlay .sheet-modal{
+    max-height:min(92vh,calc(var(--ux-vv-height,100dvh) - 12px))!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-y!important;
+  }
+
+  /* AI composer: one compact visual system for send/cancel. */
+  body.ux-chat-active .ai-chat-input-row button,
+  #aiAnalystOverlay .ai-chat-input-row button,
+  #aiChatSendBtn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    flex:0 0 38px!important;
+    display:grid!important;
+    place-items:center!important;
+    border-radius:50%!important;
+    padding:0!important;
+    font-size:0!important;
+    line-height:0!important;
+    border:none!important;
+    touch-action:manipulation!important;
+  }
+  body.ux-chat-active #aiChatSendBtn{
+    background:#F5F5F7!important;
+    color:#0A0A0C!important;
+  }
+  body.ux-chat-active #aiChatSendBtn.stop-btn{
+    background:#FF453A!important;
+    color:#FFF!important;
+  }
+  #aiChatSendBtn svg{
+    width:18px!important;
+    height:18px!important;
+    display:block!important;
+    fill:none!important;
+    stroke:currentColor!important;
+    stroke-width:2!important;
+    stroke-linecap:round!important;
+    stroke-linejoin:round!important;
+  }
+  #aiChatSendBtn.stop-btn svg rect{fill:currentColor!important;stroke:none!important;}
+
+  /* The old text/pseudo-icon is disabled so only the SVG is rendered. */
+  #aiAnalystOverlay .ai-chat-input-row button::after,
+  #aiChatSendBtn::after{content:none!important;}
+
+  /* Financial Review / notification copy: readable mobile size, same card geometry. */
+  .notification-dashboard-card .notification-title{font-size:14px!important;line-height:1.35!important;}
+  .notification-dashboard-card .notification-sub{font-size:11.5px!important;line-height:1.45!important;}
+  .notification-dashboard-card .notification-item-title{font-size:12.5px!important;line-height:1.4!important;}
+  .notification-dashboard-card .notification-item-body{font-size:11.5px!important;line-height:1.45!important;}
+  #notificationOverlay .notification-item-title{font-size:13px!important;line-height:1.4!important;}
+  #notificationOverlay .notification-item-body{font-size:12px!important;line-height:1.5!important;}
+}
+</style>
+<script id="vaultet-final-voice-viewport-runtime">
+(function(){
+  const root=document.documentElement, body=document.body, overlay=document.getElementById('aiInputOverlay');
+  if(!overlay) return;
+  function syncVoiceViewport(){
+    const vv=window.visualViewport;
+    const h=Math.round(vv?.height||window.innerHeight||0);
+    if(h>0) root.style.setProperty('--ux-voice-vv-height',h+'px');
+    if(vv){
+      root.style.setProperty('--ux-vv-height',h+'px');
+    }
+  }
+  syncVoiceViewport();
+  window.visualViewport?.addEventListener('resize',syncVoiceViewport,{passive:true});
+  window.visualViewport?.addEventListener('scroll',syncVoiceViewport,{passive:true});
+  window.addEventListener('resize',syncVoiceViewport,{passive:true});
+  const input=document.getElementById('aiInputText');
+  if(input){
+    input.addEventListener('focus',()=>{
+      body.classList.add('ux-voice-input-active');
+      syncVoiceViewport();
+    },{passive:true});
+    input.addEventListener('blur',()=>{
+      setTimeout(()=>body.classList.remove('ux-voice-input-active'),120);
+    },{passive:true});
+  }
+})();
+</script>
+
 </body>
 </html>
