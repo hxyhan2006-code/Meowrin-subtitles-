@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Green Screen Subtitle Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1210;
+    --panel:#151b18;
+    --panel-2:#1c231f;
+    --line:#2a332e;
+    --green:#39d98a;
+    --green-dim:#1f6b45;
+    --text:#eef3ef;
+    --text-dim:#9caaa2;
+    --danger:#e0665a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Kanit',sans-serif;
+    padding:20px 16px 60px;
+    line-height:1.5;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  header{margin-bottom:22px;}
+  header .head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  header .tag{color:var(--green);font-size:13px;letter-spacing:.02em;margin:0 0 6px;}
+  h1{font-size:22px;font-weight:700;margin:0 0 8px;}
+  header p{color:var(--text-dim);font-size:14px;margin:0;}
+  .settings-btn{
+    flex:0 0 auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:13px;font-weight:500;padding:9px 12px;
+    cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .settings-btn:active{border-color:var(--green-dim);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;}
+  .card h2{font-size:14px;font-weight:500;color:var(--text-dim);margin:0 0 12px;}
+  .card-head-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;}
+  .card-head-row h2{margin:0;}
+  .expand-btn{
+    flex:0 0 auto;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
+    color:var(--text);font-family:inherit;font-size:12px;font-weight:500;padding:6px 10px;
+    cursor:pointer;white-space:nowrap;
+  }
+  .expand-btn:active{border-color:var(--green-dim);}
+  label.field-label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+  input[type="password"],input[type="text"],textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:14px;padding:11px 12px;outline:none;
+  }
+  input:focus,textarea:focus{border-color:var(--green-dim);}
+  textarea{resize:vertical;min-height:140px;}
+  .two-col{display:grid;grid-template-columns:1fr;gap:12px;}
+  .file-drop{
+    border:1.5px dashed var(--line);border-radius:8px;padding:20px 14px;text-align:center;
+    cursor:pointer;background:var(--panel-2);transition:border-color .15s ease;
+  }
+  .file-drop:active{border-color:var(--green-dim);}
+  .file-drop input{display:none;}
+  .file-drop .icon{font-size:22px;display:block;margin-bottom:6px;}
+  .file-drop .hint{font-size:12px;color:var(--text-dim);margin-top:4px;}
+  .file-info{margin-top:10px;display:none;font-size:13px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;}
+  .file-info.show{display:block;}
+  .file-info b{color:var(--green);}
+  button.primary{
+    width:100%;background:var(--green);color:#08130d;border:none;border-radius:8px;
+    font-family:inherit;font-weight:700;font-size:15px;padding:14px;cursor:pointer;
+  }
+  button.primary:disabled{background:var(--green-dim);color:#c7d8ce;cursor:not-allowed;}
+  .status{display:none;margin-top:12px;font-size:13px;color:var(--text-dim);}
+  .status.show{display:flex;align-items:center;gap:8px;}
+  .spinner{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex:0 0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .step-list{margin-top:10px;font-size:12px;color:var(--text-dim);}
+  .step-list div{padding:2px 0;}
+  .step-list div.active{color:var(--green);}
+  .step-list div.done::before{content:"✓ ";color:var(--green);}
+  .step-list div.active::before{content:"› ";}
+  .step-list div.pending::before{content:"· ";}
+  .progress-wrap{display:none;align-items:center;gap:10px;margin-top:10px;}
+  .progress-wrap.show{display:flex;}
+  .progress-track{flex:1 1 auto;height:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  .progress-fill{height:100%;width:0%;background:var(--green);border-radius:4px;transition:width .12s linear;}
+  .progress-pct{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--green);min-width:36px;text-align:right;}
+  .error-box{display:none;margin-top:12px;background:rgba(224,102,90,.1);border:1px solid var(--danger);color:#f2b8b1;border-radius:8px;padding:10px 12px;font-size:13px;}
+  .error-box.show{display:block;}
+  .result-card{display:none;}
+  .result-card.show{display:block;}
+  .preview-wrap{background:#000;border-radius:8px;overflow:hidden;aspect-ratio:1/1;max-width:320px;margin:0 auto 14px;}
+  video{width:100%;height:100%;display:block;object-fit:contain;}
+  canvas.hidden-canvas{display:none;}
+  a.dl-btn{display:block;width:100%;text-align:center;text-decoration:none;background:var(--green);color:#08130d;font-weight:700;font-size:14px;border-radius:8px;padding:13px;margin-bottom:8px;}
+  a.dl-btn.secondary-dl{background:var(--panel-2);color:var(--text);border:1px solid var(--line);font-weight:500;}
+  .foot-note{font-size:12px;color:var(--text-dim);margin-top:4px;}
+  .badge{display:inline-block;font-size:11px;color:var(--green);border:1px solid var(--green-dim);border-radius:5px;padding:2px 6px;margin-left:6px;}
+
+  /* ---------- settings modal ---------- */
+  .modal-backdrop{
+    display:none;position:fixed;inset:0;z-index:9998;
+    background:rgba(6,10,8,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal-box{
+    width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:20px;
+  }
+  .modal-box h2{font-size:15px;font-weight:700;color:var(--text);margin:0 0 14px;}
+  .modal-box .two-col{margin-bottom:14px;}
+  .modal-box button.primary{margin-top:4px;}
+
+  /* ---------- fullscreen edit overlay ---------- */
+  .fullscreen-editor{
+    display:none;position:fixed;inset:0;z-index:9999;
+    background:#0d1210;flex-direction:column;padding:16px;
+  }
+  .fullscreen-editor.show{display:flex;}
+  .fullscreen-editor .fe-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex:0 0 auto;
+  }
+  .fullscreen-editor .fe-head h2{font-size:14px;font-weight:500;color:var(--text-dim);margin:0;}
+  .fullscreen-editor textarea{
+    flex:1;width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-family:inherit;font-size:16px;line-height:1.6;padding:14px;
+    outline:none;resize:none;
+  }
+  .fullscreen-editor textarea:focus{border-color:var(--green-dim);}
+  .fullscreen-editor .fe-done{
+    flex:0 0 auto;margin-top:12px;width:100%;background:var(--green);color:#08130d;border:none;
+    border-radius:8px;font-family:inherit;font-weight:700;font-size:16px;padding:16px;cursor:pointer;
+  }
+
+  /* ---------- custom fine-step slider ---------- */
+  .fine-slider-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .fs-btn{
+    flex:0 0 auto;width:38px;height:38px;border-radius:8px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--text);font-family:inherit;font-size:19px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;
+    -webkit-user-select:none;touch-action:manipulation;line-height:1;
+  }
+  .fs-btn:active{border-color:var(--green-dim);color:var(--green);}
+  .fs-track-wrap{
+    flex:1 1 auto;position:relative;height:38px;display:flex;align-items:center;
+    touch-action:none;
+  }
+  .fs-track{
+    position:relative;width:100%;height:6px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:3px;pointer-events:none;
+  }
+  .fs-fill{
+    position:absolute;left:0;top:-1px;bottom:-1px;background:var(--green-dim);
+    border-radius:3px;pointer-events:none;
+  }
+  .fs-thumb{
+    position:absolute;top:50%;width:24px;height:24px;border-radius:50%;background:var(--green);
+    border:2px solid #08130d;transform:translate(-50%,-50%);touch-action:none;cursor:grab;
+    box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  .fs-thumb:active{cursor:grabbing;}
+
+  /* ---------- waveform trim UI ---------- */
+  .wf-zoom-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .wf-zoom-row .fs-btn{width:34px;height:34px;font-size:17px;}
+  .wf-zoom-label{flex:1 1 auto;text-align:center;font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .wf-fit-btn{flex:0 0 auto;}
+  .waveform-scroll{
+    position:relative;width:100%;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:#0d1210;
+    touch-action:none;
+    scrollbar-width:thin;
+  }
+  .waveform-wrap{position:relative;height:110px;user-select:none;-webkit-user-select:none;touch-action:none;}
+  canvas.waveform-canvas{display:block;width:100%;height:110px;}
+  .wf-playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;left:0px;box-shadow:0 0 4px rgba(255,255,255,.6);z-index:3;}
+  .wf-controls{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .wf-history-row{display:flex;gap:10px;margin-top:10px;}
+  .wf-history-row button{flex:1 1 0;font-family:inherit;font-size:13px;font-weight:700;border-radius:8px;padding:11px 6px;cursor:pointer;background:var(--panel-2);border:1px solid var(--line);color:var(--text);}
+  .wf-history-row button:disabled{opacity:.35;cursor:not-allowed;}
+  .wf-history-row button:active:not(:disabled){border-color:var(--green-dim);}
+  .wf-play-btn{flex:0 0 auto;width:40px;height:40px;border-radius:50%;background:var(--green);border:none;color:#08130d;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .wf-play-btn:active{background:var(--green-dim);}
+  .wf-time{flex:1 1 auto;font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .wf-seek-row{display:flex;gap:8px;margin-top:10px;}
+  .wf-seek-btn{width:auto;flex:1 1 0;padding:0 4px;font-size:12px;font-weight:700;}
+  .wf-sel-actions{display:flex;gap:10px;margin-top:12px;}
+  .wf-sel-actions button{flex:1 1 0;font-family:inherit;font-size:13px;font-weight:700;border-radius:8px;padding:11px 6px;cursor:pointer;}
+  .wf-split-btn{background:var(--panel-2);border:1px solid var(--text-dim);color:var(--text);}
+  .wf-split-btn:active{background:rgba(255,255,255,.08);}
+  .wf-play-sel-btn{background:var(--panel-2);border:1px solid var(--green-dim);color:var(--green);}
+  .wf-play-sel-btn:active{background:rgba(57,217,138,.12);}
+  .wf-cut-sel-btn{background:var(--panel-2);border:1px solid var(--danger);color:#f2b8b1;}
+  .wf-cut-sel-btn:active{background:rgba(224,102,90,.15);}
+  .wf-sel-actions button:disabled{opacity:.35;cursor:not-allowed;}
+  .cut-list{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .cut-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;}
+  .cut-item .cut-range{color:var(--text);}
+  .cut-item button{flex:0 0 auto;background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 8px;}
+  .wf-hint{font-size:12px;color:var(--text-dim);margin:8px 0 0;}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <div>
+        <p class="tag">SUBTITLE ALIGNER · CHROMA KEY 1:1</p>
+        <h1>Green Screen Subtitle Generator</h1>
+      </div>
+      <button type="button" class="settings-btn" id="settingsBtn">⚙️ API Keys</button>
+    </div>
+    <p>วางสคริปต์ที่ตัดบรรทัดมาแล้ว (1 บรรทัด = 1 ซับ) → Groq Whisper จับเวลาเสียงจริง → คลิปซับจอเขียว 1080×1080 ตรงปาก 100%</p>
+  </header>
+
+  <div class="card">
+    <h2>1 · ไฟล์เสียงพากย์ (.mp3 / .wav / .m4a)</h2>
+    <div class="file-drop" id="fileDrop">
+      <span class="icon">🎙️</span>
+      <div>แตะเพื่อเลือกไฟล์เสียง</div>
+      <div class="hint">เสียงพากย์เพียวๆ ยังไม่ใส่เพลง/เอฟเฟกต์</div>
+      <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,audio/*">
+    </div>
+    <div class="file-info" id="fileInfo"></div>
+    <audio id="audioEl" style="display:none;"></audio>
+  </div>
+
+  <div class="card" id="trimCard" style="display:none;">
+    <h2>1.5 · ตัดส่วนที่ไม่ต้องการก่อนส่งเข้า AI (ไม่บังคับ)</h2>
+
+    <div class="wf-zoom-row">
+      <button type="button" class="fs-btn" id="wfZoomOut" aria-label="ซูมออก">−</button>
+      <span class="wf-zoom-label" id="wfZoomLabel">พอดีจอ</span>
+      <button type="button" class="fs-btn" id="wfZoomIn" aria-label="ซูมเข้า">+</button>
+      <button type="button" class="expand-btn wf-fit-btn" id="wfZoomFitBtn">พอดีจอ</button>
+    </div>
+
+    <div class="waveform-scroll" id="waveformScroll">
+      <div class="waveform-wrap" id="waveformWrap">
+        <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
+        <div class="wf-playhead" id="wfPlayhead"></div>
+      </div>
+    </div>
+
+    <div class="wf-controls">
+      <button type="button" class="wf-play-btn" id="wfPlayBtn">▶</button>
+      <span class="wf-time" id="wfTime">0:00 / 0:00</span>
+    </div>
+
+    <label class="field-label" style="margin-top:10px;">ลากเลื่อนตำแหน่ง (นิ้วเดียว ใช้ได้แม้ซูมอยู่)</label>
+    <div class="fine-slider-row">
+      <button type="button" class="fs-btn" id="wfSeekMinus" aria-label="ถอยทีละนิด">−</button>
+      <div class="fs-track-wrap" id="wfSeekTrackWrap">
+        <div class="fs-track"><div class="fs-fill" id="wfSeekFill"></div></div>
+        <div class="fs-thumb" id="wfSeekThumb"></div>
+      </div>
+      <button type="button" class="fs-btn" id="wfSeekPlus" aria-label="เดินหน้าทีละนิด">+</button>
+    </div>
+
+    <div class="wf-seek-row">
+      <button type="button" class="fs-btn wf-seek-btn" id="seekBack10">«10</button>
+      <button type="button" class="fs-btn wf-seek-btn" id="seekBack1">‹1</button>
+      <button type="button" class="fs-btn wf-seek-btn" id="seekFwd1">1›</button>
+      <button type="button" class="fs-btn wf-seek-btn" id="seekFwd10">10»</button>
+    </div>
+
+    <div class="wf-sel-actions">
+      <button type="button" class="wf-split-btn" id="wfSplitBtn" disabled>✂️ แบ่งแยก</button>
+      <button type="button" class="wf-play-sel-btn" id="wfPlaySelBtn" disabled>▶ ฟัง</button>
+      <button type="button" class="wf-cut-sel-btn" id="wfCutSelBtn" disabled>🗑️ ลบ</button>
+    </div>
+    <div class="wf-history-row">
+      <button type="button" id="wfUndoBtn" disabled>↩️ ย้อนกลับ</button>
+      <button type="button" id="wfRedoBtn" disabled>↪️ ย้อนไป (ทำซ้ำ)</button>
+    </div>
+    <div class="cut-list" id="cutList"></div>
+    <p class="wf-hint">แบบ CapCut: เลื่อนเพลย์เฮดไปจุดที่ต้องการ (แตะ/ลากบนคลื่นเสียง หรือลากแถบเลื่อนด้านบน) แล้วกด "แบ่งแยก" เพื่อตัดแบ่ง ณ จุดนั้น จากนั้นแตะที่ท่อนที่ต้องการทิ้ง (จะขึ้นกรอบขาวไฮไลต์) แล้วกด "ลบ" — ท่อนนั้นจะหายไปทันทีและท่อนที่เหลือเลื่อนมาต่อกัน (ไม่มีช่องว่าง) ท่อนที่ลบจะไม่ถูกส่งเข้า Whisper และไม่อยู่ในคลิปสุดท้าย กดผิดกด "ย้อนกลับ" ได้ ใช้ปุ่ม −/+ หรือย่อสองนิ้ว (pinch) เพื่อซูมดูจังหวะให้ชัดก่อนแบ่ง (แตะรายการด้านล่างเพื่อยกเลิกการลบแต่ละท่อน)</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head-row">
+      <h2>2 · สคริปต์ที่ตัดบรรทัดมาแล้ว (1 บรรทัด = 1 ซับ)</h2>
+      <div style="display:flex;gap:8px;flex:0 0 auto;">
+        <button type="button" class="expand-btn" id="pasteBtn">📋 วาง</button>
+        <button type="button" class="expand-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
+      </div>
+    </div>
+    <label class="field-label" for="editedScript">วาง/พิมพ์สคริปต์ที่ตัดวรรคมาจากที่อื่นแล้ว ทีละบรรทัด — กด Enter เพื่อขึ้นบรรทัดใหม่</label>
+    <textarea id="editedScript" placeholder="พิมพ์หรือวางสคริปต์ทีละบรรทัด..."></textarea>
+  </div>
+
+  <div class="card">
+    <h2>3 · ปรับขนาดตัวอักษร &amp; เส้นขอบ (Stroke)</h2>
+    <div class="preview-wrap" id="stylePreviewWrap" style="aspect-ratio:auto;max-width:100%;">
+      <canvas id="stylePreviewCanvas" width="540" height="200" style="width:100%;height:auto;display:block;"></canvas>
+    </div>
+    <label class="field-label" style="margin-top:12px;">ขนาดตัวอักษร — <span id="fontSizeVal">74</span>px</label>
+    <div class="fine-slider-row">
+      <button type="button" class="fs-btn" id="fontSizeMinus" aria-label="ลดขนาดตัวอักษร">−</button>
+      <div class="fs-track-wrap" id="fontSizeTrackWrap">
+        <div class="fs-track"><div class="fs-fill" id="fontSizeFill"></div></div>
+        <div class="fs-thumb" id="fontSizeThumb"></div>
+      </div>
+      <button type="button" class="fs-btn" id="fontSizePlus" aria-label="เพิ่มขนาดตัวอักษร">+</button>
+    </div>
+    <label class="field-label" style="margin-top:16px;">ความหนาเส้นขอบ — <span id="strokeWidthVal">10</span>px</label>
+    <div class="fine-slider-row">
+      <button type="button" class="fs-btn" id="strokeWidthMinus" aria-label="ลดความหนาเส้นขอบ">−</button>
+      <div class="fs-track-wrap" id="strokeWidthTrackWrap">
+        <div class="fs-track"><div class="fs-fill" id="strokeWidthFill"></div></div>
+        <div class="fs-thumb" id="strokeWidthThumb"></div>
+      </div>
+      <button type="button" class="fs-btn" id="strokeWidthPlus" aria-label="เพิ่มความหนาเส้นขอบ">+</button>
+    </div>
+    <label class="field-label" style="margin-top:16px;">ปรับจังหวะซับให้ตรงเสียง — <span id="syncOffsetVal">0</span> ms<span style="color:var(--text-dim);"> (ลบ = ซับขึ้นเร็วขึ้น, บวก = ซับขึ้นช้าลง)</span></label>
+    <div class="fine-slider-row">
+      <button type="button" class="fs-btn" id="syncOffsetMinus" aria-label="ให้ซับขึ้นเร็วขึ้น">−</button>
+      <div class="fs-track-wrap" id="syncOffsetTrackWrap">
+        <div class="fs-track"><div class="fs-fill" id="syncOffsetFill"></div></div>
+        <div class="fs-thumb" id="syncOffsetThumb"></div>
+      </div>
+      <button type="button" class="fs-btn" id="syncOffsetPlus" aria-label="ให้ซับขึ้นช้าลง">+</button>
+    </div>
+    <p class="wf-hint">ตัวนี้ใช้แก้กรณีซับทั้งคลิปเพี้ยนไปทางเดียวกันหมด (เร็ว/ช้าเท่าๆ กันทุกบรรทัด) เท่านั้น ถ้าซับตรงบ้างไม่ตรงบ้างสลับกันไปในคลิปเดียว ให้ปล่อยตัวนี้ไว้ที่ 0 — ระบบจะจับจุดตัดจากคลื่นเสียงจริงให้อัตโนมัติตอนกดสร้างคลิป</p>
+  </div>
+
+  <div class="card">
+    <button class="primary" id="startBtn">4. ยืนยันวรรค &amp; สร้างคลิปจอเขียว</button>
+    <div class="status" id="statusRow"><div class="spinner"></div><span id="statusText">กำลังทำงาน...</span></div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-pct" id="progressPct">0%</div>
+    </div>
+    <div class="step-list" id="stepList">
+      <div id="step1" class="pending">กำลังจับเวลาเสียงจริง (Whisper)</div>
+      <div id="step2" class="pending">กำลังจับคู่บรรทัดกับเสียง (Word Matching)</div>
+      <div id="step3" class="pending">กำลังเรนเดอร์คลิปจอเขียว</div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <h2>ผลลัพธ์ <span class="badge">1080×1080 · mp4</span></h2>
+    <div class="preview-wrap"><video id="previewVideo" controls playsinline></video></div>
+    <a class="dl-btn" id="dlVideo" download="green_screen_subtitle.mp4">⬇️ ดาวน์โหลดคลิปซับจอเขียว (.mp4)</a>
+    <a class="dl-btn secondary-dl" id="dlSrt" download="subtitle.srt">📄 ดาวน์โหลดไฟล์ .srt</a>
+    <p class="foot-note">นำไฟล์ .mp4 เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปอนิเมะได้เลย</p>
+  </div>
+
+    <canvas id="renderCanvas" class="hidden-canvas" width="1080" height="1080"></canvas>
+
+</div>
+
+<!-- ---------- settings modal (API Keys) ---------- -->
+<div class="modal-backdrop" id="settingsModalBackdrop">
+  <div class="modal-box">
+    <h2>⚙️ API Key</h2>
+    <div class="two-col">
+      <div>
+        <label class="field-label" for="apiKeyGroq">Groq API Key (จับเวลาเสียง Whisper)</label>
+        <input type="password" id="apiKeyGroq" placeholder="gsk_...">
+      </div>
+    </div>
+    <button type="button" class="primary" id="settingsSaveBtn">บันทึกและปิด</button>
+  </div>
+</div>
+
+<!-- ---------- fullscreen script editor ---------- -->
+<div class="fullscreen-editor" id="fullscreenEditor">
+  <div class="fe-head">
+    <h2>2 · แก้ไขสคริปต์ (เต็มจอ)</h2>
+  </div>
+  <textarea id="fullscreenTextarea" placeholder="พิมพ์/แก้ไขบรรทัดซับที่นี่..."></textarea>
+  <button type="button" class="fe-done" id="fullscreenDoneBtn">✓ บันทึกและเสร็จสิ้น</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  const CANVAS_W = 1080, CANVAS_H = 1080;
+  let FONT_PX = 74;
+  const FONT_FAMILY = "Kanit";
+  let STROKE_PX = 10;
+  let SYNC_OFFSET_MS = 0;
+  const BOTTOM_MARGIN_RATIO = 0.10;
+  const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
+  const GROQ_MODEL = "whisper-large-v3";
+  const WORD_LOOKAHEAD = 20;
+  const WORD_MAX_SPAN = 25;
+  const MIN_MATCH_SCORE = 0.25;
+  const EARLY_BREAK_SCORE = 0.65;
+
+  // ---------- elements ----------
+  const apiKeyGroqInput = document.getElementById('apiKeyGroq');
+  const fileDrop = document.getElementById('fileDrop');
+  const audioFileInput = document.getElementById('audioFile');
+  const fileInfo = document.getElementById('fileInfo');
+  const audioEl = document.getElementById('audioEl');
+  const editedScript = document.getElementById('editedScript');
+  const fontSizeVal = document.getElementById('fontSizeVal');
+  const strokeWidthVal = document.getElementById('strokeWidthVal');
+  const stylePreviewCanvas = document.getElementById('stylePreviewCanvas');
+  const startBtn = document.getElementById('startBtn');
+  const statusRow = document.getElementById('statusRow');
+  const statusText = document.getElementById('statusText');
+  const errorBox = document.getElementById('errorBox');
+  const resultCard = document.getElementById('resultCard');
+  const previewVideo = document.getElementById('previewVideo');
+  const dlVideo = document.getElementById('dlVideo');
+  const dlSrt = document.getElementById('dlSrt');
+  const canvas = document.getElementById('renderCanvas');
+  const ctx = canvas.getContext('2d');
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
+  const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+  const expandEditBtn = document.getElementById('expandEditBtn');
+  const pasteBtn = document.getElementById('pasteBtn');
+  const fullscreenEditor = document.getElementById('fullscreenEditor');
+  const fullscreenTextarea = document.getElementById('fullscreenTextarea');
+  const fullscreenDoneBtn = document.getElementById('fullscreenDoneBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressFill = document.getElementById('progressFill');
+  const progressPct = document.getElementById('progressPct');
+  const trimCard = document.getElementById('trimCard');
+  const waveformScroll = document.getElementById('waveformScroll');
+  const waveformWrap = document.getElementById('waveformWrap');
+  const waveformCanvas = document.getElementById('waveformCanvas');
+  const wfPlayhead = document.getElementById('wfPlayhead');
+  const wfPlayBtn = document.getElementById('wfPlayBtn');
+  const wfTime = document.getElementById('wfTime');
+  const wfSplitBtn = document.getElementById('wfSplitBtn');
+  const wfPlaySelBtn = document.getElementById('wfPlaySelBtn');
+  const wfCutSelBtn = document.getElementById('wfCutSelBtn');
+  const wfZoomOutBtn = document.getElementById('wfZoomOut');
+  const wfZoomInBtn = document.getElementById('wfZoomIn');
+  const wfZoomFitBtn = document.getElementById('wfZoomFitBtn');
+  const wfZoomLabel = document.getElementById('wfZoomLabel');
+  const cutListEl = document.getElementById('cutList');
+  const seekBack10Btn = document.getElementById('seekBack10');
+  const seekBack1Btn = document.getElementById('seekBack1');
+  const seekFwd1Btn = document.getElementById('seekFwd1');
+  const seekFwd10Btn = document.getElementById('seekFwd10');
+  const wfSeekTrackWrap = document.getElementById('wfSeekTrackWrap');
+  const wfSeekThumb = document.getElementById('wfSeekThumb');
+  const wfSeekFill = document.getElementById('wfSeekFill');
+  const wfSeekMinusBtn = document.getElementById('wfSeekMinus');
+  const wfSeekPlusBtn = document.getElementById('wfSeekPlus');
+  const wfUndoBtn = document.getElementById('wfUndoBtn');
+  const wfRedoBtn = document.getElementById('wfRedoBtn');
+
+  let selectedFile = null;
+  let audioBuffer = null;
+  let waveformPeaks = null;
+  let cutRegions = [];
+  let splitPoints = [];
+  let selectedSeg = null;
+  let loopSelection = false;
+  let wfRafId = null;
+  let zoom = 1;
+  const ZOOM_MIN = 1, ZOOM_MAX = 60;
+  let basePxPerSecond = 1;
+  function pxPerSecond(){ return basePxPerSecond * zoom; }
+
+  // ---------- undo/redo for split/delete actions on the waveform ----------
+  let undoStack = [];
+  let redoStack = [];
+  function snapshotTrimState(){
+    return {
+      cutRegions: cutRegions.map(r => ({ start: r.start, end: r.end })),
+      splitPoints: [...splitPoints]
+    };
+  }
+  function pushHistory(){
+    undoStack.push(snapshotTrimState());
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+    updateHistoryButtons();
+  }
+  function applyTrimState(s){
+    cutRegions = s.cutRegions.map(r => ({ start: r.start, end: r.end }));
+    splitPoints = [...s.splitPoints];
+    selectedSeg = null;
+    recomputeBasePxPerSecond();
+    layoutWaveform();
+    drawWaveform();
+    renderCutList();
+    refreshSelUI();
+    renderPlayheadOnly();
+    updateHistoryButtons();
+  }
+  function updateHistoryButtons(){
+    wfUndoBtn.disabled = undoStack.length === 0;
+    wfRedoBtn.disabled = redoStack.length === 0;
+  }
+  wfUndoBtn.addEventListener('click', () => {
+    if (undoStack.length === 0) return;
+    redoStack.push(snapshotTrimState());
+    applyTrimState(undoStack.pop());
+  });
+  wfRedoBtn.addEventListener('click', () => {
+    if (redoStack.length === 0) return;
+    undoStack.push(snapshotTrimState());
+    applyTrimState(redoStack.pop());
+  });
+
+  // ---------- edge auto-scroll ----------
+  const EDGE_ZONE_PX = 34;
+  const EDGE_MAX_SPEED_PX = 14;
+  let edgeScrollPointerX = null;
+  let edgeScrollRafId = null;
+  function edgeScrollLoop(){
+    if (dragMode !== 'scrub' || edgeScrollPointerX == null){ edgeScrollRafId = null; return; }
+    const scrollRect = waveformScroll.getBoundingClientRect();
+    const maxScroll = Math.max(0, waveformWrap.offsetWidth - waveformScroll.clientWidth);
+    let dx = 0;
+    if (edgeScrollPointerX < scrollRect.left + EDGE_ZONE_PX){
+      const depth = (scrollRect.left + EDGE_ZONE_PX - edgeScrollPointerX) / EDGE_ZONE_PX;
+      dx = -EDGE_MAX_SPEED_PX * Math.min(1, depth);
+    } else if (edgeScrollPointerX > scrollRect.right - EDGE_ZONE_PX){
+      const depth = (edgeScrollPointerX - (scrollRect.right - EDGE_ZONE_PX)) / EDGE_ZONE_PX;
+      dx = EDGE_MAX_SPEED_PX * Math.min(1, depth);
+    }
+    if (dx !== 0 && maxScroll > 0){
+      waveformScroll.scrollLeft = Math.max(0, Math.min(maxScroll, waveformScroll.scrollLeft + dx));
+      audioEl.currentTime = clientXToOrigTime(edgeScrollPointerX);
+      renderPlayheadOnly();
+      updateSeekSliderFromTime();
+    }
+    edgeScrollRafId = requestAnimationFrame(edgeScrollLoop);
+  }
+  function startEdgeScroll(){
+    if (edgeScrollRafId == null) edgeScrollRafId = requestAnimationFrame(edgeScrollLoop);
+  }
+  function stopEdgeScroll(){
+    edgeScrollPointerX = null;
+    if (edgeScrollRafId != null){ cancelAnimationFrame(edgeScrollRafId); edgeScrollRafId = null; }
+  }
+
+  // ---------- persist API key ----------
+  const savedGroq = localStorage.getItem('groq_api_key');
+  if (savedGroq) apiKeyGroqInput.value = savedGroq;
+  apiKeyGroqInput.addEventListener('input', () => {
+    localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
+  });
+
+  // ---------- settings modal ----------
+  function openSettingsModal(){
+    settingsModalBackdrop.classList.add('show');
+  }
+  function closeSettingsModal(){
+    settingsModalBackdrop.classList.remove('show');
+  }
+  settingsBtn.addEventListener('click', openSettingsModal);
+  settingsSaveBtn.addEventListener('click', () => {
+    localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
+    closeSettingsModal();
+  });
+  settingsModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === settingsModalBackdrop) closeSettingsModal();
+  });
+  // ---------- custom fine-step slider ----------
+  function setupFineSlider({ trackWrapId, thumbId, fillId, minusBtnId, plusBtnId, min, max, step, initial, valueLabelEl, onChange }){
+    const trackWrap = document.getElementById(trackWrapId);
+    const thumb = document.getElementById(thumbId);
+    const fill = document.getElementById(fillId);
+    const minusBtn = document.getElementById(minusBtnId);
+    const plusBtn = document.getElementById(plusBtnId);
+    let value = initial;
+
+    function clamp(v){ return Math.min(max, Math.max(min, v)); }
+    function pctFor(v){ return ((v - min) / (max - min)) * 100; }
+
+    function render(){
+      const pct = pctFor(value);
+      thumb.style.left = pct + '%';
+      fill.style.width = pct + '%';
+      if (valueLabelEl) valueLabelEl.textContent = String(value);
+    }
+
+    function setValue(raw, fire){
+      const stepped = Math.round(raw / step) * step;
+      const v = clamp(stepped);
+      const changed = v !== value;
+      value = v;
+      render();
+      if (fire && changed) onChange(value);
+    }
+
+    let dragging = false;
+    thumb.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      thumb.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    thumb.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const rect = trackWrap.getBoundingClientRect();
+      const ratio = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+      setValue(min + ratio * (max - min), true);
+    });
+    function endDrag(e){
+      if (!dragging) return;
+      dragging = false;
+      try { thumb.releasePointerCapture(e.pointerId); } catch (_){}
+    }
+    thumb.addEventListener('pointerup', endDrag);
+    thumb.addEventListener('pointercancel', endDrag);
+
+    minusBtn.addEventListener('click', () => setValue(value - step, true));
+    plusBtn.addEventListener('click', () => setValue(value + step, true));
+
+    render();
+    return { get: () => value };
+  }
+
+  // ---------- text style controls ----------
+  const PREVIEW_SCALE = stylePreviewCanvas.width / CANVAS_W;
+  const PREVIEW_SAMPLE_TEXT = 'ตัวอย่างข้อความซับ';
+
+  function drawStylePreview(){
+    const pctx = stylePreviewCanvas.getContext('2d');
+    const w = stylePreviewCanvas.width, h = stylePreviewCanvas.height;
+    pctx.clearRect(0, 0, w, h);
+    pctx.fillStyle = '#00FF00';
+    pctx.fillRect(0, 0, w, h);
+    const fpx = Math.max(6, FONT_PX * PREVIEW_SCALE);
+    const spx = Math.max(0, STROKE_PX * PREVIEW_SCALE);
+    pctx.font = `700 ${fpx}px "${FONT_FAMILY}"`;
+    pctx.textAlign = 'center';
+    pctx.textBaseline = 'middle';
+    pctx.lineJoin = 'round';
+    pctx.miterLimit = 2;
+    pctx.lineWidth = spx;
+    pctx.strokeStyle = '#000000';
+    pctx.fillStyle = '#FFFFFF';
+    if (spx > 0) pctx.strokeText(PREVIEW_SAMPLE_TEXT, w / 2, h / 2);
+    pctx.fillText(PREVIEW_SAMPLE_TEXT, w / 2, h / 2);
+  }
+
+  const savedFontPxRaw = localStorage.getItem('gs_font_px');
+  const initialFontPx = savedFontPxRaw != null && !Number.isNaN(Number(savedFontPxRaw)) ? Number(savedFontPxRaw) : FONT_PX;
+  const savedStrokePxRaw = localStorage.getItem('gs_stroke_px');
+  const initialStrokePx = savedStrokePxRaw != null && !Number.isNaN(Number(savedStrokePxRaw)) ? Number(savedStrokePxRaw) : STROKE_PX;
+
+  setupFineSlider({
+    trackWrapId: 'fontSizeTrackWrap', thumbId: 'fontSizeThumb', fillId: 'fontSizeFill',
+    minusBtnId: 'fontSizeMinus', plusBtnId: 'fontSizePlus',
+    min: 40, max: 130, step: 1, initial: initialFontPx, valueLabelEl: fontSizeVal,
+    onChange: (v) => {
+      FONT_PX = v;
+      localStorage.setItem('gs_font_px', String(v));
+      drawStylePreview();
+    }
+  });
+  FONT_PX = initialFontPx;
+
+  setupFineSlider({
+    trackWrapId: 'strokeWidthTrackWrap', thumbId: 'strokeWidthThumb', fillId: 'strokeWidthFill',
+    minusBtnId: 'strokeWidthMinus', plusBtnId: 'strokeWidthPlus',
+    min: 0, max: 24, step: 1, initial: initialStrokePx, valueLabelEl: strokeWidthVal,
+    onChange: (v) => {
+      STROKE_PX = v;
+      localStorage.setItem('gs_stroke_px', String(v));
+      drawStylePreview();
+    }
+  });
+  STROKE_PX = initialStrokePx;
+
+  const savedSyncOffsetRaw = localStorage.getItem('gs_sync_offset_ms');
+  const initialSyncOffsetMs = savedSyncOffsetRaw != null && !Number.isNaN(Number(savedSyncOffsetRaw)) ? Number(savedSyncOffsetRaw) : 0;
+  const syncOffsetValEl = document.getElementById('syncOffsetVal');
+  setupFineSlider({
+    trackWrapId: 'syncOffsetTrackWrap', thumbId: 'syncOffsetThumb', fillId: 'syncOffsetFill',
+    minusBtnId: 'syncOffsetMinus', plusBtnId: 'syncOffsetPlus',
+    min: -300, max: 300, step: 10, initial: initialSyncOffsetMs, valueLabelEl: syncOffsetValEl,
+    onChange: (v) => {
+      SYNC_OFFSET_MS = v;
+      localStorage.setItem('gs_sync_offset_ms', String(v));
+    }
+  });
+  SYNC_OFFSET_MS = initialSyncOffsetMs;
+
+  drawStylePreview();
+  document.fonts.ready.then(drawStylePreview).catch(() => {});
+
+  // ---------- fullscreen script editor ----------
+  function openFullscreenEditor(){
+    fullscreenTextarea.value = editedScript.value;
+    fullscreenEditor.classList.add('show');
+    fullscreenTextarea.focus();
+  }
+  function closeFullscreenEditor(){
+    editedScript.value = fullscreenTextarea.value;
+    fullscreenEditor.classList.remove('show');
+  }
+  expandEditBtn.addEventListener('click', openFullscreenEditor);
+  fullscreenDoneBtn.addEventListener('click', closeFullscreenEditor);
+
+  // ---------- one-tap paste ----------
+  pasteBtn.addEventListener('click', async () => {
+    hideError();
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text){ showError('คลิปบอร์ดว่างเปล่า — คัดลอกสคริปต์มาก่อนแล้วค่อยกดวาง'); return; }
+      editedScript.value = text;
+      editedScript.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (err){
+      showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง');
+    }
+  });
+  fullscreenTextarea.addEventListener('input', () => {
+    editedScript.value = fullscreenTextarea.value;
+  });
+
+  // ---------- file selection ----------
+  fileDrop.addEventListener('click', () => audioFileInput.click());
+  audioFileInput.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    selectedFile = f;
+    audioEl.src = URL.createObjectURL(f);
+    await new Promise(res => {
+      audioEl.addEventListener('loadedmetadata', res, { once: true });
+    });
+    const durationSec = await getReliableDuration(audioEl);
+    const mins = Math.floor(durationSec / 60);
+    const secs = Math.round(durationSec % 60).toString().padStart(2, '0');
+    fileInfo.innerHTML = `<b>${escapeHtml(f.name)}</b> · ${mins}:${secs}`;
+    fileInfo.classList.add('show');
+
+    cutRegions = [];
+    splitPoints = [];
+    selectedSeg = null;
+    audioBuffer = null;
+    waveformPeaks = null;
+    zoom = 1;
+    undoStack = [];
+    redoStack = [];
+    updateHistoryButtons();
+    wfSplitBtn.disabled = true;
+    refreshSelUI();
+    trimCard.style.display = 'none';
+    try {
+      audioBuffer = await decodeAudioFile(f);
+      waveformPeaks = computePeaks(audioBuffer, 2000);
+      trimCard.style.display = 'block';
+      wfSplitBtn.disabled = false;
+      renderCutList();
+      requestAnimationFrame(() => { recomputeBasePxPerSecond(); layoutWaveform(); drawWaveform(); });
+      updatePlayheadAndTime();
+    } catch (err){
+      console.warn('waveform decode failed, trimming UI unavailable for this file', err);
+    }
+  });
+
+  // =========================================================
+  // WAVEFORM TRIM
+  // =========================================================
+  async function decodeAudioFile(file){
+    const arrayBuf = await file.arrayBuffer();
+    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+      return await tmpCtx.decodeAudioData(arrayBuf);
+    } finally {
+      tmpCtx.close();
+    }
+  }
+
+  function computePeaks(buffer, numBuckets){
+    const channelCount = buffer.numberOfChannels;
+    const length = buffer.length;
+    const channelData = [];
+    for (let c = 0; c < channelCount; c++) channelData.push(buffer.getChannelData(c));
+    const samplesPerBucket = Math.max(1, Math.floor(length / numBuckets));
+    const peaks = new Float32Array(numBuckets * 2);
+    for (let i = 0; i < numBuckets; i++){
+      const start = i * samplesPerBucket;
+      const end = Math.min(length, start + samplesPerBucket);
+      let min = 0, max = 0;
+      for (let j = start; j < end; j++){
+        let v = 0;
+        for (let c = 0; c < channelCount; c++) v += channelData[c][j];
+        v /= channelCount;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      peaks[i*2] = min;
+      peaks[i*2+1] = max;
+    }
+    return peaks;
+  }
+
+  function fmtTime(t){
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t/60);
+    const s = Math.floor(t%60).toString().padStart(2,'0');
+    return `${m}:${s}`;
+  }
+
+  function keptSegments(){
+    if (!audioBuffer) return [];
+    const dur = audioBuffer.duration;
+    const cuts = [...cutRegions].sort((a, b) => a.start - b.start);
+    const kept = [];
+    let cursor = 0;
+    cuts.forEach(c => {
+      if (c.start > cursor) kept.push({ start: cursor, end: c.start });
+      cursor = Math.max(cursor, c.end);
+    });
+    if (cursor < dur) kept.push({ start: cursor, end: dur });
+    return kept;
+  }
+  function virtualDuration(){
+    return keptSegments().reduce((s, k) => s + (k.end - k.start), 0);
+  }
+  function isInCutRegion(t){
+    return cutRegions.some(r => t >= r.start && t < r.end);
+  }
+  function origToVirtual(t){
+    let acc = 0;
+    for (const k of keptSegments()){
+      if (t <= k.start) break;
+      if (t <= k.end){ acc += (t - k.start); break; }
+      acc += (k.end - k.start);
+    }
+    return acc;
+  }
+  function virtualToOrig(v){
+    let acc = 0;
+    const segs = keptSegments();
+    for (const k of segs){
+      const len = k.end - k.start;
+      if (v <= acc + len) return k.start + (v - acc);
+      acc += len;
+    }
+    return segs.length ? segs[segs.length - 1].end : 0;
+  }
+  function selectableSegments(){
+    const result = [];
+    keptSegments().forEach(k => {
+      const pts = splitPoints.filter(p => p > k.start + 0.001 && p < k.end - 0.001).sort((a, b) => a - b);
+      let prev = k.start;
+      pts.forEach(p => { result.push({ start: prev, end: p }); prev = p; });
+      result.push({ start: prev, end: k.end });
+    });
+    return result;
+  }
+  function snapOutOfCutRegion(t, forward){
+    for (const r of cutRegions){
+      if (t >= r.start && t < r.end) return forward ? r.end : r.start;
+    }
+    return t;
+  }
+
+  function totalWidthPx(){
+    return Math.max(1, virtualDuration() * pxPerSecond());
+  }
+  function recomputeBasePxPerSecond(){
+    if (!audioBuffer) return;
+    const visibleW = waveformScroll.clientWidth || 300;
+    basePxPerSecond = visibleW / Math.max(0.001, virtualDuration());
+  }
+  function maxZoomAllowed(){
+    const visibleW = waveformScroll.clientWidth || 300;
+    return Math.max(4, Math.min(ZOOM_MAX, 16000 / visibleW));
+  }
+  function clampZoom(z){
+    return Math.max(ZOOM_MIN, Math.min(maxZoomAllowed(), z));
+  }
+  function updateZoomLabel(){
+    wfZoomLabel.textContent = zoom <= 1.02 ? 'พอดีจอ' : Math.round(zoom * 100) + '%';
+  }
+  function layoutWaveform(){
+    if (!audioBuffer) return;
+    waveformWrap.style.width = totalWidthPx() + 'px';
+    updateZoomLabel();
+  }
+  function timeToX(t){ return t * pxPerSecond(); }
+  function xToTime(x){ return audioBuffer ? Math.max(0, Math.min(virtualDuration(), x / pxPerSecond())) : 0; }
+  function clientXToTime(clientX){
+    const rect = waveformWrap.getBoundingClientRect();
+    return xToTime(clientX - rect.left);
+  }
+  function clientXToOrigTime(clientX){
+    return virtualToOrig(clientXToTime(clientX));
+  }
+  function clampToDuration(t){
+    if (!audioBuffer) return 0;
+    return Math.max(0, Math.min(audioBuffer.duration, t));
+  }
+
+  function drawWaveform(){
+    if (!waveformPeaks || !audioBuffer) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = waveformCanvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(110 * dpr));
+    if (waveformCanvas.width !== w || waveformCanvas.height !== h){
+      waveformCanvas.width = w;
+      waveformCanvas.height = h;
+    }
+    const wctx = waveformCanvas.getContext('2d');
+    wctx.clearRect(0, 0, w, h);
+    const midY = h / 2;
+
+    wctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    wctx.beginPath(); wctx.moveTo(0, midY); wctx.lineTo(w, midY); wctx.stroke();
+
+    const vDur = Math.max(0.001, virtualDuration());
+    const totalDur = audioBuffer.duration;
+    const numBuckets = waveformPeaks.length / 2;
+
+    wctx.strokeStyle = '#39d98a';
+    wctx.lineWidth = Math.max(1, dpr);
+    wctx.beginPath();
+    for (let x = 0; x < w; x++){
+      const vTime = (x / w) * vDur;
+      const origTime = virtualToOrig(vTime);
+      let bi = Math.floor((origTime / totalDur) * numBuckets);
+      if (bi < 0) bi = 0; if (bi >= numBuckets) bi = numBuckets - 1;
+      const min = waveformPeaks[bi*2], max = waveformPeaks[bi*2+1];
+      wctx.moveTo(x, midY - max * midY * 0.92);
+      wctx.lineTo(x, midY - min * midY * 0.92);
+    }
+    wctx.stroke();
+
+    wctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    wctx.lineWidth = Math.max(1, dpr);
+    splitPoints.forEach(p => {
+      if (isInCutRegion(p)) return;
+      const dx = (origToVirtual(p) / vDur) * w;
+      wctx.beginPath(); wctx.moveTo(dx, 0); wctx.lineTo(dx, h); wctx.stroke();
+    });
+
+    if (selectedSeg){
+      const dx1 = (origToVirtual(selectedSeg.start) / vDur) * w;
+      const dx2 = (origToVirtual(selectedSeg.end) / vDur) * w;
+      wctx.fillStyle = 'rgba(255,255,255,0.14)';
+      wctx.fillRect(dx1, 0, Math.max(1, dx2 - dx1), h);
+      wctx.strokeStyle = '#ffffff';
+      wctx.lineWidth = Math.max(2, dpr * 2);
+      wctx.strokeRect(dx1 + 1, 1, Math.max(1, dx2 - dx1 - 2), h - 2);
+    }
+  }
+  window.addEventListener('resize', () => {
+    if (!audioBuffer) return;
+    recomputeBasePxPerSecond();
+    layoutWaveform();
+    drawWaveform();
+    refreshSelUI();
+  });
+
+  function selectSegmentAt(origTime){
+    const segs = selectableSegments();
+    let found = segs.find(s => origTime >= s.start - 0.001 && origTime <= s.end + 0.001);
+    if (!found && segs.length){
+      let best = null, bestD = Infinity;
+      segs.forEach(s => {
+        const d = Math.min(Math.abs(origTime - s.start), Math.abs(origTime - s.end));
+        if (d < bestD){ bestD = d; best = s; }
+      });
+      found = best;
+    }
+    selectedSeg = found || null;
+    refreshSelUI();
+    drawWaveform();
+  }
+
+  function refreshSelUI(){
+    const has = !!(selectedSeg && audioBuffer);
+    wfPlaySelBtn.disabled = !has;
+    wfCutSelBtn.disabled = !has;
+  }
+
+  function renderPlayheadOnly(){
+    if (!audioBuffer) return;
+    const vDur = virtualDuration() || 1;
+    const vTime = origToVirtual(audioEl.currentTime);
+    wfPlayhead.style.left = timeToX(vTime) + 'px';
+    wfTime.textContent = `${fmtTime(vTime)} / ${fmtTime(vDur)}`;
+    updateSeekSliderFromTime();
+  }
+
+  let seekThumbDragging = false;
+  function updateSeekSliderFromTime(){
+    if (seekThumbDragging || !audioBuffer) return;
+    const vDur = Math.max(0.001, virtualDuration());
+    const pct = Math.max(0, Math.min(100, (origToVirtual(audioEl.currentTime) / vDur) * 100));
+    wfSeekThumb.style.left = pct + '%';
+    wfSeekFill.style.width = pct + '%';
+  }
+  (function setupSeekSlider(){
+    let dragging = false;
+    function setFromClientX(clientX){
+      const rect = wfSeekTrackWrap.getBoundingClientRect();
+      const ratio = rect.width > 0 ? Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) : 0;
+      const vDur = Math.max(0.001, virtualDuration());
+      audioEl.currentTime = virtualToOrig(ratio * vDur);
+      wfSeekThumb.style.left = (ratio * 100) + '%';
+      wfSeekFill.style.width = (ratio * 100) + '%';
+      renderPlayheadOnly();
+      autoScrollToPlayheadForced();
+    }
+    wfSeekThumb.addEventListener('pointerdown', (e) => {
+      if (!audioBuffer) return;
+      dragging = true;
+      seekThumbDragging = true;
+      loopSelection = false;
+      audioEl.pause();
+      wfSeekThumb.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    wfSeekThumb.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      setFromClientX(e.clientX);
+    });
+    function endDrag(e){
+      if (!dragging) return;
+      dragging = false;
+      seekThumbDragging = false;
+      try { wfSeekThumb.releasePointerCapture(e.pointerId); } catch (_){}
+    }
+    wfSeekThumb.addEventListener('pointerup', endDrag);
+    wfSeekThumb.addEventListener('pointercancel', endDrag);
+  })();
+  wfSeekMinusBtn.addEventListener('click', () => seekBy(-0.2));
+  wfSeekPlusBtn.addEventListener('click', () => seekBy(0.2));
+  function autoScrollToPlayheadForced(){ autoScrollToPlayhead(); }
+  function autoScrollToPlayhead(){
+    if (zoom <= 1.02) return;
+    const scrollRect = waveformScroll.getBoundingClientRect();
+    const playheadX = timeToX(origToVirtual(audioEl.currentTime));
+    const viewLeft = waveformScroll.scrollLeft;
+    const viewRight = viewLeft + scrollRect.width;
+    if (playheadX < viewLeft + 24 || playheadX > viewRight - 24){
+      waveformScroll.scrollLeft = Math.max(0, playheadX - scrollRect.width / 2);
+    }
+  }
+
+  const activePointers = new Map();
+  let dragMode = null;
+  let pinchStartDist = 0;
+  let pinchStartZoom = 1;
+  let pinchAnchorTime = 0;
+  let scrubStartX = 0, scrubStartY = 0;
+  const TAP_MOVE_THRESHOLD = 8;
+
+  function pointerDist(pts){ return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y); }
+  function pointerMid(pts){ return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }; }
+
+  waveformWrap.addEventListener('pointerdown', (e) => {
+    if (!audioBuffer) return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { waveformWrap.setPointerCapture(e.pointerId); } catch (_){}
+    e.preventDefault();
+
+    if (activePointers.size >= 2){
+      dragMode = null;
+      const pts = Array.from(activePointers.values()).slice(0, 2);
+      const scrollRect = waveformScroll.getBoundingClientRect();
+      const mid = pointerMid(pts);
+      pinchAnchorTime = xToTime(waveformScroll.scrollLeft + (mid.x - scrollRect.left));
+      pinchStartDist = Math.max(1, pointerDist(pts));
+      pinchStartZoom = zoom;
+      return;
+    }
+
+    dragMode = 'scrub';
+    scrubStartX = e.clientX;
+    scrubStartY = e.clientY;
+    loopSelection = false;
+    audioEl.pause();
+    audioEl.currentTime = clientXToOrigTime(e.clientX);
+    renderPlayheadOnly();
+    updateSeekSliderFromTime();
+  });
+
+  waveformWrap.addEventListener('pointermove', (e) => {
+    if (!audioBuffer || !activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.size >= 2){
+      stopEdgeScroll();
+      selectedSeg = null;
+      refreshSelUI();
+      const pts = Array.from(activePointers.values()).slice(0, 2);
+      const dist = Math.max(1, pointerDist(pts));
+      const mid = pointerMid(pts);
+      zoom = clampZoom(pinchStartZoom * (dist / pinchStartDist));
+      layoutWaveform();
+      const scrollRect = waveformScroll.getBoundingClientRect();
+      waveformScroll.scrollLeft = Math.max(0, timeToX(pinchAnchorTime) - (mid.x - scrollRect.left));
+      drawWaveform();
+      renderPlayheadOnly();
+      return;
+    }
+
+    if (dragMode === 'scrub'){
+      audioEl.currentTime = clientXToOrigTime(e.clientX);
+      renderPlayheadOnly();
+      updateSeekSliderFromTime();
+      edgeScrollPointerX = e.clientX;
+      startEdgeScroll();
+    }
+  });
+
+  function endWfPointer(e){
+    activePointers.delete(e.pointerId);
+    try { waveformWrap.releasePointerCapture(e.pointerId); } catch (_){}
+    if (activePointers.size === 0){
+      if (dragMode === 'scrub'){
+        const moved = Math.hypot(e.clientX - scrubStartX, e.clientY - scrubStartY);
+  // ---------- build final trimmed audio buffer ----------
+  function buildTrimmedAudioBuffer(buffer, regions){
+    const sampleRate = buffer.sampleRate;
+    const numChannels = buffer.numberOfChannels;
+    const totalSamples = buffer.length;
+    const cuts = regions
+      .map(r => ({
+        start: Math.max(0, Math.min(totalSamples, Math.round(r.start * sampleRate))),
+        end: Math.max(0, Math.min(totalSamples, Math.round(r.end * sampleRate)))
+      }))
+      .filter(r => r.end > r.start)
+      .sort((a, b) => a.start - b.start);
+
+    const kept = [];
+    let cursor = 0;
+    cuts.forEach(c => {
+      if (c.start > cursor) kept.push({ start: cursor, end: c.start });
+      cursor = Math.max(cursor, c.end);
+    });
+    if (cursor < totalSamples) kept.push({ start: cursor, end: totalSamples });
+
+    const newLength = Math.max(1, kept.reduce((sum, k) => sum + (k.end - k.start), 0));
+    const outBuffer = new AudioContext().createBuffer(numChannels, newLength, sampleRate);
+    for (let c = 0; c < numChannels; c++){
+      const srcData = buffer.getChannelData(c);
+      const dstData = outBuffer.getChannelData(c);
+      let writeOffset = 0;
+      kept.forEach(k => {
+        dstData.set(srcData.subarray(k.start, k.end), writeOffset);
+        writeOffset += (k.end - k.start);
+      });
+    }
+    return outBuffer;
+  }
+
+  function audioBufferToWavBlob(buffer){
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const numFrames = buffer.length;
+    const blockAlign = numChannels * 2;
+    const dataSize = numFrames * blockAlign;
+    const arrBuf = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(arrBuf);
+    function writeString(offset, str){
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    const channelData = [];
+    for (let c = 0; c < numChannels; c++) channelData.push(buffer.getChannelData(c));
+    let offset = 44;
+    for (let i = 0; i < numFrames; i++){
+      for (let c = 0; c < numChannels; c++){
+        const sample = Math.max(-1, Math.min(1, channelData[c][i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    return new Blob([arrBuf], { type: 'audio/wav' });
+  }
+
+  function getFileForProcessing(){
+    if (!audioBuffer || cutRegions.length === 0) return selectedFile;
+    const trimmedBuffer = buildTrimmedAudioBuffer(audioBuffer, cutRegions);
+    const wavBlob = audioBufferToWavBlob(trimmedBuffer);
+    return new File([wavBlob], 'trimmed_audio.wav', { type: 'audio/wav' });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getReliableDuration(mediaEl){
+    return new Promise((resolve) => {
+      if (isFinite(mediaEl.duration) && mediaEl.duration > 0){
+        resolve(mediaEl.duration);
+        return;
+      }
+      const onTimeUpdate = () => {
+        mediaEl.removeEventListener('timeupdate', onTimeUpdate);
+        mediaEl.currentTime = 0;
+        resolve(isFinite(mediaEl.duration) ? mediaEl.duration : 0);
+      };
+      mediaEl.addEventListener('timeupdate', onTimeUpdate);
+      mediaEl.currentTime = 1e10;
+    });
+  }
+
+  // ---------- helpers ----------
+  function stripWs(s){
+    return s.replace(/\s+/g, '');
+  }
+
+  function setStep(el, state){ el.className = state; }
+  function showStatus(msg, row = statusRow, textEl = statusText){ row.classList.add('show'); if (textEl) textEl.textContent = msg; }
+  function hideStatus(row = statusRow){ row.classList.remove('show'); }
+  function showProgress(){ progressWrap.classList.add('show'); setProgress(0); }
+  function hideProgress(){ progressWrap.classList.remove('show'); }
+  function setProgress(pct){
+    const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+    progressFill.style.width = clamped + '%';
+    progressPct.textContent = clamped + '%';
+  }
+  function showError(msg, box = errorBox){ box.textContent = msg; box.classList.add('show'); }
+  function hideError(box = errorBox){ box.classList.remove('show'); }
+
+  function srtTime(t){
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = Math.floor(t % 60);
+    const ms = Math.round((t - Math.floor(t)) * 1000);
+    const pad = (n, len) => String(n).padStart(len, '0');
+    return `${pad(h,2)}:${pad(m,2)}:${pad(s,2)},${pad(ms,3)}`;
+  }
+
+  function buildSrt(segments){
+    return segments.map((seg, i) =>
+      `${i + 1}\n${srtTime(seg.start)} --> ${srtTime(seg.end)}\n${seg.text}\n`
+    ).join('\n');
+  }
+
+  // =========================================================
+  // STEP A — Groq Whisper: real acoustic word timing
+  // =========================================================
+  async function callGroqWhisper(apiKey, audioFile){
+    const form = new FormData();
+    form.append('file', audioFile);
+    form.append('model', GROQ_MODEL);
+    form.append('response_format', 'verbose_json');
+    form.append('timestamp_granularities[]', 'word');
+    form.append('language', 'th');
+
+    const res = await fetch(GROQ_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: form
+    });
+
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Groq Whisper API error (${res.status}): ${errText.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const words = data.words || [];
+    if (!Array.isArray(words) || words.length === 0){
+      throw new Error('Groq Whisper ไม่ส่งข้อมูล word-level timestamp กลับมา (ตรวจว่าเปิด timestamp_granularities[]=word)');
+    }
+    return words.map(w => ({
+      text: String(w.word || ''),
+      start: Number(w.start) || 0,
+      end: Number(w.end) || 0
+    }));
+  }
+
+  // =========================================================
+  // STEP B — Global alignment + two-pass finishing
+  // =========================================================
+  const GLOBAL_ALIGN_CELL_BUDGET = 12000000;
+
+  function alignLinesToWords(lines, whisperWords) {
+    const rawSegments = globalAlignLines(lines, whisperWords);
+    if (rawSegments) return finishSegments(rawSegments, whisperWords);
+    return finishSegments(alignLinesToWordsWindowed(lines, whisperWords), whisperWords);
+  }
+
+  function globalAlignLines(lines, whisperWords) {
+    const strippedLines = lines.map(stripWs);
+    const targetText = strippedLines.join('');
+    const N = targetText.length;
+
+    let asrText = '';
+    const asrCharMeta = [];
+    whisperWords.forEach((w, wi) => {
+      const t = stripWs(w.text);
+      for (let k = 0; k < t.length; k++) {
+        asrText += t[k];
+        asrCharMeta.push({ wordIdx: wi, offsetInWord: k, wordLen: t.length });
+      }
+    });
+    const M = asrText.length;
+
+    if (N === 0 || M === 0) return null;
+    if (N * M > GLOBAL_ALIGN_CELL_BUDGET) return null;
+
+    const W = M + 1;
+    const dp = new Int32Array((N + 1) * W);
+    for (let j = 0; j <= M; j++) dp[j] = j;
+    for (let i = 0; i <= N; i++) dp[i * W] = i;
+
+    for (let i = 1; i <= N; i++) {
+      const rowBase = i * W;
+      const prevRowBase = (i - 1) * W;
+      const tc = targetText[i - 1];
+      for (let j = 1; j <= M; j++) {
+        const cost = tc === asrText[j - 1] ? 0 : 1;
+        const sub = dp[prevRowBase + j - 1] + cost;
+        const del = dp[prevRowBase + j] + 1;
+        const ins = dp[rowBase + j - 1] + 1;
+        let best = sub;
+        if (del < best) best = del;
+        if (ins < best) best = ins;
+        dp[rowBase + j] = best;
+      }
+    }
+
+    const targetPosToAsrPos = new Int32Array(N + 1);
+    let i = N, j = M;
+    targetPosToAsrPos[N] = M;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && dp[i * W + j] === dp[(i - 1) * W + (j - 1)] + (targetText[i - 1] === asrText[j - 1] ? 0 : 1)) {
+        i--; j--;
+        targetPosToAsrPos[i] = j;
+        continue;
+      }
+      if (i > 0 && dp[i * W + j] === dp[(i - 1) * W + j] + 1) {
+        i--;
+        targetPosToAsrPos[i] = j;
+        continue;
+      }
+      if (j > 0 && dp[i * W + j] === dp[i * W + (j - 1)] + 1) {
+        j--;
+        continue;
+      }
+      if (i > 0) { i--; targetPosToAsrPos[i] = j; } else { j--; }
+    }
+
+    // จุดแก้ไขที่ 1: ใช้ Linear Interpolation ตามสัดส่วนตัวอักษรจริง ไม่ดีดกลับจุดเริ่มก้อนคำ
+    function snapToNearestWordEdge(w, frac) {
+      const duration = Math.max(0, w.end - w.start);
+      return w.start + (duration * Math.max(0, Math.min(1, frac)));
+    }
+    function asrStartTime(pos) {
+      if (pos <= 0) return whisperWords[0].start;
+      if (pos >= M) return whisperWords[whisperWords.length - 1].end;
+      const meta = asrCharMeta[pos];
+      const w = whisperWords[meta.wordIdx];
+      const frac = meta.wordLen > 0 ? meta.offsetInWord / meta.wordLen : 0;
+      return snapToNearestWordEdge(w, frac);
+    }
+    function asrEndTime(pos) {
+      if (pos <= 0) return whisperWords[0].start;
+      if (pos >= M) return whisperWords[whisperWords.length - 1].end;
+      const meta = asrCharMeta[pos - 1];
+      const w = whisperWords[meta.wordIdx];
+      const frac = meta.wordLen > 0 ? (meta.offsetInWord + 1) / meta.wordLen : 1;
+      return snapToNearestWordEdge(w, frac);
+    }
+
+    const rawSegments = [];
+    let cursor = 0;
+    for (let li = 0; li < lines.length; li++) {
+      const sl = strippedLines[li];
+      if (!sl) { rawSegments.push({ text: lines[li], start: null, end: null, matched: false, score: 0 }); continue; }
+      const startPos = targetPosToAsrPos[cursor];
+      const endPos = targetPosToAsrPos[cursor + sl.length];
+      cursor += sl.length;
+      const st = asrStartTime(startPos);
+      const en = Math.max(st + 0.02, asrEndTime(endPos));
+      const asrSlice = asrText.slice(Math.max(0, startPos), Math.min(M, Math.max(startPos, endPos)));
+      const score = textSimilarity(sl, asrSlice);
+      rawSegments.push({ text: lines[li], start: st, end: en, matched: true, score });
+    }
+    return rawSegments;
+  }
+
+  function alignLinesToWordsWindowed(lines, whisperWords) {
+    const words = whisperWords.map(w => stripWs(w.text));
+    const N = words.length;
+    let wp = 0;
+    const rawSegments = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const target = stripWs(line);
+      if (!target) continue;
+
+      let best = null;
+      const searchLimit = Math.min(N, wp + WORD_LOOKAHEAD);
+
+      for (let start = wp; start < searchLimit; start++) {
+        let acc = '';
+        const spanLimit = Math.min(N, start + WORD_MAX_SPAN);
+        for (let end = start; end < spanLimit; end++) {
+          acc += words[end];
+          const rawScore = textSimilarity(target, acc);
+          const distancePenalty = (start - wp) * 0.03;
+          const score = rawScore - distancePenalty;
+
+          if (!best || score > best.score) {
+            best = { start, end, score, rawScore };
+          }
+          if (acc.length >= target.length && rawScore > EARLY_BREAK_SCORE) break;
+          if (acc.length > target.length * 1.5 + 4) break;
+        }
+      }
+
+      if (best && best.rawScore >= MIN_MATCH_SCORE) {
+        rawSegments.push({
+          text: line,
+          start: whisperWords[best.start].start,
+          end: whisperWords[best.end].end,
+          matched: true,
+          score: best.rawScore
+        });
+        wp = best.end + 1;
+      } else {
+        rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
+        wp = Math.min(N, wp + Math.max(1, Math.round(target.length / 7)));
+      }
+    }
+    return rawSegments;
+  }
+
+  function finishSegments(rawSegments, whisperWords) {
+    const totalAudioDuration = whisperWords.length > 0 ? whisperWords[whisperWords.length - 1].end : 30;
+    let idx = 0;
+
+    while (idx < rawSegments.length) {
+      if (rawSegments[idx].matched) {
+        idx++;
+        continue;
+      }
+
+      const blockStart = idx;
+      while (idx < rawSegments.length && !rawSegments[idx].matched) {
+        idx++;
+      }
+      const blockEnd = idx;
+
+      let tPrev = 0;
+      if (blockStart > 0 && rawSegments[blockStart - 1].end != null) {
+        tPrev = rawSegments[blockStart - 1].end;
+      }
+
+      let tNext = totalAudioDuration;
+      if (blockEnd < rawSegments.length && rawSegments[blockEnd].start != null) {
+        tNext = rawSegments[blockEnd].start;
+      }
+
+      let totalChars = 0;
+      for (let k = blockStart; k < blockEnd; k++) {
+        totalChars += Math.max(1, stripWs(rawSegments[k].text).length);
+      }
+
+      const availableDuration = Math.max(0.4 * (blockEnd - blockStart), tNext - tPrev);
+      let currentCursor = tPrev;
+
+      for (let k = blockStart; k < blockEnd; k++) {
+        const charLen = Math.max(1, stripWs(rawSegments[k].text).length);
+        const slotDuration = (charLen / totalChars) * availableDuration;
+        const activeDuration = Math.max(0.25, slotDuration * 0.80);
+        rawSegments[k].start = currentCursor;
+        rawSegments[k].end = currentCursor + activeDuration;
+        currentCursor += slotDuration;
+      }
+    }
+
+    const finalSegments = [];
+
+    for (let i = 0; i < rawSegments.length; i++) {
+      const cur = rawSegments[i];
+      const next = rawSegments[i + 1];
+
+      // จุดแก้ไขที่ 2: หน่วง Safe Delay +25ms ให้สัมพันธ์กับการออกเสียงจริงและแก้ Cross-Attention Bias
+      let exactStart = cur.start + (cur.matched ? 0.025 : 0);
+      let exactEnd = cur.end;
+
+      if (next && next.start != null) {
+        if (exactEnd > next.start) {
+          exactEnd = next.start;
+        }
+      }
+
+      if (exactEnd <= exactStart) {
+        exactEnd = exactStart + 0.02;
+      }
+
+      finalSegments.push({
+        text: cur.text,
+        start: Number(exactStart.toFixed(2)),
+        end: Number(exactEnd.toFixed(2)),
+        score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
+      });
+    }
+
+    return finalSegments;
+  }
+  function levenshteinDistance(a, b){
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = new Array(n + 1);
+    let curr = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++){
+      curr[0] = i;
+      for (let j = 1; j <= n; j++){
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      }
+      const tmp = prev; prev = curr; curr = tmp;
+    }
+    return prev[n];
+  }
+
+  function textSimilarity(a, b){
+    if (a.length === 0 && b.length === 0) return 1;
+    if (a.length === 0 || b.length === 0) return 0;
+    const dist = levenshteinDistance(a, b);
+    return 1 - dist / Math.max(a.length, b.length);
+  }
+
+  // ---------- canvas drawing ----------
+  function drawFrame(text){
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!text) return;
+
+    ctx.font = `700 ${FONT_PX}px "${FONT_FAMILY}"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = STROKE_PX;
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = '#FFFFFF';
+
+    const x = CANVAS_W / 2;
+    const y = CANVAS_H - (CANVAS_H * BOTTOM_MARGIN_RATIO);
+
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+
+  function findActiveText(segments, t){
+    for (const seg of segments){
+      if (t >= seg.start && t < seg.end) return seg.text;
+    }
+    return '';
+  }
+
+  // =========================================================
+  // AUDIO-ENERGY BOUNDARY REFINEMENT
+  // =========================================================
+  function refineSegmentBoundariesWithEnergy(segments, audioBuffer){
+    const sr = audioBuffer.sampleRate;
+    const totalSamples = audioBuffer.length;
+    if (totalSamples === 0) return segments;
+
+    const numCh = audioBuffer.numberOfChannels;
+    let monoData;
+    if (numCh === 1){
+      monoData = audioBuffer.getChannelData(0);
+    } else {
+      monoData = new Float32Array(totalSamples);
+      const chans = [];
+      for (let c = 0; c < numCh; c++) chans.push(audioBuffer.getChannelData(c));
+      for (let i = 0; i < totalSamples; i++){
+        let s = 0;
+        for (let c = 0; c < numCh; c++) s += chans[c][i];
+        monoData[i] = s / numCh;
+      }
+    }
+
+    const FRAME = Math.max(1, Math.round(sr * 0.01));
+    const HOP = Math.max(1, Math.round(sr * 0.005));
+    const frameCount = Math.max(1, Math.floor((totalSamples - FRAME) / HOP) + 1);
+    const envelope = new Float32Array(frameCount);
+    for (let f = 0; f < frameCount; f++){
+      const s0 = f * HOP;
+      let sumSq = 0;
+      for (let i = 0; i < FRAME; i++){
+        const v = monoData[s0 + i] || 0;
+        sumSq += v * v;
+      }
+      envelope[f] = Math.sqrt(sumSq / FRAME);
+    }
+
+    const frameTime = (f) => f * HOP / sr;
+    const timeToFrame = (t) => Math.max(0, Math.min(frameCount - 1, Math.round((t * sr) / HOP)));
+
+    const sortedEnv = Array.from(envelope).sort((a, b) => a - b);
+    const noiseFloor = sortedEnv[Math.floor(sortedEnv.length * 0.15)] || 0;
+
+    const thresholdOnset = Math.max(noiseFloor * 5.0, noiseFloor + 0.015);
+    const thresholdOffset = Math.max(noiseFloor * 2.5, noiseFloor + 0.003);
+
+    function snapOnset(t){
+      const centerF = timeToFrame(t);
+      const maxLookbackFrames = Math.max(1, Math.round(0.04 / (HOP / sr)));
+      const maxLookaheadFrames = Math.max(1, Math.round(0.15 / (HOP / sr)));
+      const startF = Math.max(1, centerF - maxLookbackFrames);
+      const endF = Math.min(frameCount - 1, centerF + maxLookaheadFrames);
+
+      let best = null, bestDist = Infinity;
+      for (let f = startF; f <= endF; f++){
+        if (envelope[f - 1] < thresholdOnset && envelope[f] >= thresholdOnset){
+          const d = Math.abs(f - centerF);
+          if (d < bestDist){ bestDist = d; best = f; }
+        }
+      }
+      return best != null ? frameTime(best) : t;
+    }
+
+    function snapOffset(t){
+      const centerF = timeToFrame(t);
+      const searchSpan = Math.max(1, Math.round(0.2 / (HOP / sr)));
+      const startF = Math.max(1, centerF - searchSpan);
+      const endF = Math.min(frameCount - 1, centerF + searchSpan);
+
+      let best = null, bestDist = Infinity;
+      for (let f = startF; f <= endF; f++){
+        if (envelope[f - 1] >= thresholdOffset && envelope[f] < thresholdOffset){
+          const d = Math.abs(f - centerF);
+          if (d < bestDist){ bestDist = d; best = f; }
+        }
+      }
+      return best != null ? frameTime(best) : t;
+    }
+
+    const GAP_EPSILON = 0.03;
+    for (let i = 0; i < segments.length; i++){
+      const seg = segments[i];
+      if (!seg.matched) continue;
+      const prev = segments[i - 1];
+      const next = segments[i + 1];
+      const hasGapBefore = !prev || !prev.matched || (seg.start - prev.end) > GAP_EPSILON;
+      const hasGapAfter = !next || !next.matched || (next.start - seg.end) > GAP_EPSILON;
+      if (hasGapBefore){
+        const snapped = snapOnset(seg.start);
+        if (snapped < seg.end - 0.02) seg.start = snapped;
+      }
+      if (hasGapAfter){
+        const snapped = snapOffset(seg.end);
+        if (snapped > seg.start + 0.02) seg.end = snapped;
+      }
+    }
+
+    for (let i = 0; i < segments.length - 1; i++){
+      if (segments[i].matched && segments[i + 1].matched && segments[i].end > segments[i + 1].start){
+        segments[i].end = segments[i + 1].start;
+      }
+    }
+    return segments;
+  }
+
+  // =========================================================
+  // RENDER (WebCodecs via Mediabunny)
+  // =========================================================
+  const MEDIABUNNY_CDN = 'https://cdn.jsdelivr.net/npm/mediabunny@1.54.0/+esm';
+  let mediabunnyModulePromise = null;
+  function loadMediabunny(){
+    if (!mediabunnyModulePromise) mediabunnyModulePromise = import(MEDIABUNNY_CDN);
+    return mediabunnyModulePromise;
+  }
+
+  async function renderVideo(segments, audioBuffer, onProgress){
+    await document.fonts.load(`700 ${FONT_PX}px "${FONT_FAMILY}"`);
+    await document.fonts.ready;
+
+    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource, QUALITY_HIGH } = await loadMediabunny();
+
+    const output = new Output({
+      format: new Mp4OutputFormat(),
+      target: new BufferTarget(),
+    });
+
+    const videoSource = new CanvasSource(canvas, { codec: 'avc', quality: QUALITY_HIGH });
+    output.addVideoTrack(videoSource);
+
+    const audioSource = new AudioBufferSource({ codec: 'aac', quality: QUALITY_HIGH });
+    output.addAudioTrack(audioSource);
+
+    await output.start();
+
+    const FPS = 30;
+    const frameDur = 1 / FPS;
+    const durationSec = audioBuffer.duration;
+    const totalFrames = Math.max(1, Math.ceil(durationSec * FPS));
+
+    for (let i = 0; i < totalFrames; i++){
+      const t = i * frameDur;
+      const dur = Math.min(frameDur, durationSec - t);
+      drawFrame(findActiveText(segments, t));
+      await videoSource.add(t, dur);
+      if (typeof onProgress === 'function'){
+        onProgress(Math.min(97, (t / durationSec) * 100));
+      }
+    }
+
+    if (typeof onProgress === 'function') onProgress(98);
+    await audioSource.add(audioBuffer);
+
+    await output.finalize();
+    if (typeof onProgress === 'function') onProgress(100);
+
+    const blob = new Blob([output.target.buffer], { type: 'video/mp4' });
+    return { blob, durationSeconds: durationSec };
+  }
+
+  // ---------- STEP EXECUTION ----------
+  startBtn.addEventListener('click', async () => {
+    hideError();
+    resultCard.classList.remove('show');
+
+    const groqKey = apiKeyGroqInput.value.trim();
+    const lines = editedScript.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    if (!groqKey){ showError('กรอก Groq API Key ก่อน'); return; }
+    if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน'); return; }
+    if (lines.length === 0){ showError('ตรวจสอบ/แก้ไขวรรคในช่องด้านบนก่อน (อย่างน้อย 1 บรรทัด)'); return; }
+
+    if (!audioEl.paused) audioEl.pause();
+
+    startBtn.disabled = true;
+    setStep(step1, 'active'); setStep(step2, 'pending'); setStep(step3, 'pending');
+
+    try {
+      if (cutRegions.length > 0){
+        showStatus('กำลังตัดส่วนที่เลือกออกจากไฟล์เสียง...');
+      }
+      const processedFile = getFileForProcessing();
+
+      showStatus('กำลังถอดรหัสไฟล์เสียง...');
+      const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const renderAudioBuffer = await decodeCtx.decodeAudioData(await processedFile.arrayBuffer());
+      await decodeCtx.close();
+
+      showStatus('กำลังจับเวลาเสียงจริง (Whisper)...');
+      const whisperWords = await callGroqWhisper(groqKey, processedFile);
+      setStep(step1, 'done'); setStep(step2, 'active');
+      showStatus('กำลังจับคู่บรรทัดกับเสียง...');
+
+      let segments = alignLinesToWords(lines, whisperWords);
+      if (SYNC_OFFSET_MS !== 0){
+        const off = SYNC_OFFSET_MS / 1000;
+        segments = segments.map(s => ({
+          ...s,
+          start: Math.max(0, s.start + off),
+          end: Math.max(0.02, s.end + off)
+        }));
+        for (let i = 0; i < segments.length - 1; i++){
+          if (segments[i].end > segments[i + 1].start) segments[i].end = segments[i + 1].start;
+        }
+      }
+
+      showStatus('กำลังปรับจุดตัดให้ตรงคลื่นเสียงจริง...');
+      segments = refineSegmentBoundariesWithEnergy(segments, renderAudioBuffer);
+      setStep(step2, 'done'); setStep(step3, 'active');
+
+      showStatus('กำลังเรนเดอร์คลิปจอเขียว...');
+      showProgress();
+
+      const { blob: videoBlob, durationSeconds } = await renderVideo(segments, renderAudioBuffer, setProgress);
+      setStep(step3, 'done');
+      hideProgress();
+
+      const videoUrl = URL.createObjectURL(videoBlob);
+      previewVideo.src = videoUrl;
+      dlVideo.href = videoUrl;
+
+      const srtBlob = new Blob([buildSrt(segments)], { type: 'text/plain' });
+      dlSrt.href = URL.createObjectURL(srtBlob);
+
+      resultCard.classList.add('show');
+      hideStatus();
+    } catch (err){
+      console.error(err);
+      hideStatus();
+      hideProgress();
+      showError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
+    } finally {
+      startBtn.disabled = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
