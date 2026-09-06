@@ -1,0 +1,27 @@
+{
+  "name": "Green Screen Subtitle Generator",
+  "short_name": "SubGen",
+  "id": "/greenscreen-sub-FINAL_V_13.html",
+  "start_url": "./greenscreen-sub-FINAL_V_13.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1210",
+  "theme_color": "#0d1210",
+  "lang": "th",
+  "description": "สร้างซับไตเติลจอเขียวจากไฟล์เสียงพากย์และสคริปต์ พร้อมเรนเดอร์เป็นคลิป MP4",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
