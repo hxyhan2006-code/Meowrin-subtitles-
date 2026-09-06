@@ -1,8 +1,8 @@
 {
   "name": "Green Screen Subtitle Generator",
   "short_name": "SubGen",
-  "id": "/greenscreen-sub-FINAL_V_13.html",
-  "start_url": "./greenscreen-sub-FINAL_V_13.html",
+  "id": "./index.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
