@@ -1,9 +1,9 @@
 {
   "name": "Green Screen Subtitle Generator",
   "short_name": "SubGen",
-  "id": "./index.html",
-  "start_url": "./index.html",
-  "scope": "./",
+  "id": "/Meowrin-subtitles-/",
+  "start_url": "/Meowrin-subtitles-/",
+  "scope": "/Meowrin-subtitles-/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0d1210",
