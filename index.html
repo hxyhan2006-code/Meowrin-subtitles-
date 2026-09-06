@@ -137,7 +137,7 @@
     border-radius:8px;font-family:inherit;font-weight:700;font-size:16px;padding:16px;cursor:pointer;
   }
 
-  /* ---------- custom fine-step slider ---------- */
+  /* ---------- custom fine-step slider (thumb-only drag + +/- buttons) ---------- */
   .fine-slider-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
   .fs-btn{
     flex:0 0 auto;width:38px;height:38px;border-radius:8px;background:var(--panel-2);
@@ -148,11 +148,11 @@
   .fs-btn:active{border-color:var(--green-dim);color:var(--green);}
   .fs-track-wrap{
     flex:1 1 auto;position:relative;height:38px;display:flex;align-items:center;
-    touch-action:none;
+    touch-action:none; /* the wrap itself never scrolls/handles taps — only the thumb does */
   }
   .fs-track{
     position:relative;width:100%;height:6px;background:var(--panel-2);
-    border:1px solid var(--line);border-radius:3px;pointer-events:none;
+    border:1px solid var(--line);border-radius:3px;pointer-events:none; /* tapping the bar does nothing */
   }
   .fs-fill{
     position:absolute;left:0;top:-1px;bottom:-1px;background:var(--green-dim);
@@ -165,7 +165,7 @@
   }
   .fs-thumb:active{cursor:grabbing;}
 
-  /* ---------- waveform trim UI ---------- */
+  /* ---------- waveform trim UI (CapCut-style: zoom + drag-select + cut) ---------- */
   .wf-zoom-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
   .wf-zoom-row .fs-btn{width:34px;height:34px;font-size:17px;}
   .wf-zoom-label{flex:1 1 auto;text-align:center;font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
@@ -173,7 +173,7 @@
   .waveform-scroll{
     position:relative;width:100%;overflow-x:auto;overflow-y:hidden;
     -webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:#0d1210;
-    touch-action:none;
+    touch-action:none; /* all gestures handled manually (1-finger select, 2-finger pan/zoom) */
     scrollbar-width:thin;
   }
   .waveform-wrap{position:relative;height:110px;user-select:none;-webkit-user-select:none;touch-action:none;}
@@ -354,7 +354,7 @@
     <p class="foot-note">นำไฟล์ .mp4 เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปอนิเมะได้เลย</p>
   </div>
 
-    <canvas id="renderCanvas" class="hidden-canvas" width="1080" height="1080"></canvas>
+  <canvas id="renderCanvas" class="hidden-canvas" width="1080" height="1080"></canvas>
 
 </div>
 
@@ -387,17 +387,18 @@
 
   // ---------- constants ----------
   const CANVAS_W = 1080, CANVAS_H = 1080;
-  let FONT_PX = 74;
+  let FONT_PX = 74;   // user-adjustable via the style card (was a fixed const)
   const FONT_FAMILY = "Kanit";
-  let STROKE_PX = 10;
-  let SYNC_OFFSET_MS = 0;
+  let STROKE_PX = 10; // user-adjustable via the style card (was a fixed const)
+  let SYNC_OFFSET_MS = 0; // user-adjustable manual correction for sub-vs-audio timing drift
   const BOTTOM_MARGIN_RATIO = 0.10;
   const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
   const GROQ_MODEL = "whisper-large-v3";
-  const WORD_LOOKAHEAD = 20;
-  const WORD_MAX_SPAN = 25;
-  const MIN_MATCH_SCORE = 0.25;
-  const EARLY_BREAK_SCORE = 0.65;
+  // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
+  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start (widened to stop fast/short words from falling outside the window)
+  const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
+  const MIN_MATCH_SCORE = 0.25;   // similarity floor below which a line is treated as unmatched
+  const EARLY_BREAK_SCORE = 0.65; // score at which the inner span-search stops early once long enough
 
   // ---------- elements ----------
   const apiKeyGroqInput = document.getElementById('apiKeyGroq');
@@ -434,6 +435,7 @@
   const progressFill = document.getElementById('progressFill');
   const progressPct = document.getElementById('progressPct');
   const trimCard = document.getElementById('trimCard');
+
   const waveformScroll = document.getElementById('waveformScroll');
   const waveformWrap = document.getElementById('waveformWrap');
   const waveformCanvas = document.getElementById('waveformCanvas');
@@ -461,20 +463,20 @@
   const wfRedoBtn = document.getElementById('wfRedoBtn');
 
   let selectedFile = null;
-  let audioBuffer = null;
-  let waveformPeaks = null;
-  let cutRegions = [];
-  let splitPoints = [];
-  let selectedSeg = null;
-  let loopSelection = false;
+  let audioBuffer = null;      // decoded original audio, used to draw the waveform + build the trimmed version
+  let waveformPeaks = null;    // Float32Array of [min,max] pairs per pixel-bucket
+  let cutRegions = [];         // [{start,end}] in ORIGINAL-audio seconds — sorted, non-overlapping (committed deletions)
+  let splitPoints = [];        // [seconds] in ORIGINAL-audio time — manual split markers inside surviving audio
+  let selectedSeg = null;      // {start,end} in ORIGINAL-audio seconds — the currently tapped/highlighted piece, ready to delete
+  let loopSelection = false;   // true while previewing the selected piece on a loop
   let wfRafId = null;
-  let zoom = 1;
+  let zoom = 1;                 // 1 = fit-to-width, up to ZOOM_MAX
   const ZOOM_MIN = 1, ZOOM_MAX = 60;
-  let basePxPerSecond = 1;
+  let basePxPerSecond = 1;      // px/sec at zoom=1 (fills the visible width) — recomputed on load/resize
   function pxPerSecond(){ return basePxPerSecond * zoom; }
 
   // ---------- undo/redo for split/delete actions on the waveform ----------
-  let undoStack = [];
+  let undoStack = [];   // [{cutRegions, splitPoints}] — snapshot taken BEFORE each mutating action
   let redoStack = [];
   function snapshotTrimState(){
     return {
@@ -515,7 +517,9 @@
     applyTrimState(redoStack.pop());
   });
 
-  // ---------- edge auto-scroll ----------
+  // ---------- edge auto-scroll: dragging the playhead near either edge of
+  // the visible (zoomed-in) waveform pans the view for you — no more
+  // needing a second finger just to move forward/back while zoomed ----------
   const EDGE_ZONE_PX = 34;
   const EDGE_MAX_SPEED_PX = 14;
   let edgeScrollPointerX = null;
@@ -555,7 +559,7 @@
     localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
   });
 
-  // ---------- settings modal ----------
+  // ---------- settings modal (API Key) ----------
   function openSettingsModal(){
     settingsModalBackdrop.classList.add('show');
   }
@@ -570,7 +574,9 @@
   settingsModalBackdrop.addEventListener('click', (e) => {
     if (e.target === settingsModalBackdrop) closeSettingsModal();
   });
-  // ---------- custom fine-step slider ----------
+
+  // ---------- custom fine-step slider (drag the round thumb only; tapping
+  // the bar itself does nothing — that's the point) ----------
   function setupFineSlider({ trackWrapId, thumbId, fillId, minusBtnId, plusBtnId, min, max, step, initial, valueLabelEl, onChange }){
     const trackWrap = document.getElementById(trackWrapId);
     const thumb = document.getElementById(thumbId);
@@ -598,6 +604,8 @@
       if (fire && changed) onChange(value);
     }
 
+    // Dragging starts ONLY from a pointerdown on the thumb itself — tapping
+    // anywhere else on the track is intentionally inert.
     let dragging = false;
     thumb.addEventListener('pointerdown', (e) => {
       dragging = true;
@@ -625,8 +633,8 @@
     return { get: () => value };
   }
 
-  // ---------- text style controls ----------
-  const PREVIEW_SCALE = stylePreviewCanvas.width / CANVAS_W;
+  // ---------- text style controls (font size / stroke width) ----------
+  const PREVIEW_SCALE = stylePreviewCanvas.width / CANVAS_W; // keep preview proportional to the real 1080px-wide render
   const PREVIEW_SAMPLE_TEXT = 'ตัวอย่างข้อความซับ';
 
   function drawStylePreview(){
@@ -708,7 +716,7 @@
   expandEditBtn.addEventListener('click', openFullscreenEditor);
   fullscreenDoneBtn.addEventListener('click', closeFullscreenEditor);
 
-  // ---------- one-tap paste ----------
+  // ---------- one-tap paste (pulls latest copied text straight in) ----------
   pasteBtn.addEventListener('click', async () => {
     hideError();
     try {
@@ -720,6 +728,8 @@
       showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง');
     }
   });
+  // keep the main textarea synced live too, in case the fullscreen mode
+  // is dismissed some other way (e.g. mobile back gesture)
   fullscreenTextarea.addEventListener('input', () => {
     editedScript.value = fullscreenTextarea.value;
   });
@@ -740,6 +750,9 @@
     fileInfo.innerHTML = `<b>${escapeHtml(f.name)}</b> · ${mins}:${secs}`;
     fileInfo.classList.add('show');
 
+    // reset trim state for the newly selected file, then try to decode it
+    // for the waveform. If decoding fails (unsupported format on this
+    // browser), the app still works normally — trimming is just unavailable.
     cutRegions = [];
     splitPoints = [];
     selectedSeg = null;
@@ -766,7 +779,8 @@
   });
 
   // =========================================================
-  // WAVEFORM TRIM
+  // WAVEFORM TRIM — let the user see, hear, and cut out parts of the
+  // audio (silence, coughs, mistakes) before it's sent to Whisper.
   // =========================================================
   async function decodeAudioFile(file){
     const arrayBuf = await file.arrayBuffer();
@@ -809,6 +823,9 @@
     return `${m}:${s}`;
   }
 
+  // ---------- ripple model: cutRegions are physically gone from the timeline.
+  // "virtual" time = position on the (collapsed) timeline the user sees/taps.
+  // "orig" time = position in the actual decoded audioBuffer. ----------
   function keptSegments(){
     if (!audioBuffer) return [];
     const dur = audioBuffer.duration;
@@ -847,6 +864,8 @@
     }
     return segs.length ? segs[segs.length - 1].end : 0;
   }
+  // the pieces the user can tap-select: each surviving (kept) region, further
+  // cut into pieces at any manual split points inside it
   function selectableSegments(){
     const result = [];
     keptSegments().forEach(k => {
@@ -893,12 +912,16 @@
     const rect = waveformWrap.getBoundingClientRect();
     return xToTime(clientX - rect.left);
   }
+  // client X on the (collapsed) waveform -> real position in the original file
   function clientXToOrigTime(clientX){
     return virtualToOrig(clientXToTime(clientX));
   }
   function clampToDuration(t){
     if (!audioBuffer) return 0;
     return Math.max(0, Math.min(audioBuffer.duration, t));
+  }
+  function fmtTimePrecise(t){
+    return `${fmtTime(t)}.${Math.floor((t % 1) * 10)}`;
   }
 
   function drawWaveform(){
@@ -922,6 +945,10 @@
     const totalDur = audioBuffer.duration;
     const numBuckets = waveformPeaks.length / 2;
 
+    // ripple-drawn waveform: every pixel column maps back to a spot in the
+    // ORIGINAL file, walking past whatever has already been cut out — so
+    // deleted parts simply never appear, and the remaining audio reads as
+    // one continuous clip (like CapCut after a delete).
     wctx.strokeStyle = '#39d98a';
     wctx.lineWidth = Math.max(1, dpr);
     wctx.beginPath();
@@ -936,6 +963,7 @@
     }
     wctx.stroke();
 
+    // manual split markers — thin white divider at each split point still standing
     wctx.strokeStyle = 'rgba(255,255,255,0.55)';
     wctx.lineWidth = Math.max(1, dpr);
     splitPoints.forEach(p => {
@@ -944,6 +972,7 @@
       wctx.beginPath(); wctx.moveTo(dx, 0); wctx.lineTo(dx, h); wctx.stroke();
     });
 
+    // the currently selected piece — highlighted box, ready to delete
     if (selectedSeg){
       const dx1 = (origToVirtual(selectedSeg.start) / vDur) * w;
       const dx2 = (origToVirtual(selectedSeg.end) / vDur) * w;
@@ -962,6 +991,7 @@
     refreshSelUI();
   });
 
+  // ---------- selection (tap-to-select a whole piece, CapCut style) ----------
   function selectSegmentAt(origTime){
     const segs = selectableSegments();
     let found = segs.find(s => origTime >= s.start - 0.001 && origTime <= s.end + 0.001);
@@ -993,6 +1023,9 @@
     updateSeekSliderFromTime();
   }
 
+  // ---------- one-finger seek slider (same widget style as the font-size
+  // slider) — drag the thumb to scrub anywhere, works the same whether
+  // zoomed in or not, no second finger required ----------
   let seekThumbDragging = false;
   function updateSeekSliderFromTime(){
     if (seekThumbDragging || !audioBuffer) return;
@@ -1037,9 +1070,12 @@
   })();
   wfSeekMinusBtn.addEventListener('click', () => seekBy(-0.2));
   wfSeekPlusBtn.addEventListener('click', () => seekBy(0.2));
+  // like autoScrollToPlayhead, but scrolls even at zoom<=1.02 is skipped
+  // there anyway (nothing to scroll); kept as its own name so the seek
+  // slider's intent (always try to keep the view following) is explicit
   function autoScrollToPlayheadForced(){ autoScrollToPlayhead(); }
   function autoScrollToPlayhead(){
-    if (zoom <= 1.02) return;
+    if (zoom <= 1.02) return; // whole clip already fits — nothing to scroll
     const scrollRect = waveformScroll.getBoundingClientRect();
     const playheadX = timeToX(origToVirtual(audioEl.currentTime));
     const viewLeft = waveformScroll.scrollLeft;
@@ -1049,13 +1085,17 @@
     }
   }
 
+  // 1-finger tap or drag on the waveform moves the playhead (scrub) and, on
+  // release, selects whichever piece it landed on — a single tap is all it
+  // takes to pick a clip to delete, no painting/dragging a range required.
+  // 2-finger gestures pinch-zoom and pan the timeline.
   const activePointers = new Map();
-  let dragMode = null;
+  let dragMode = null;          // 'scrub' | null
   let pinchStartDist = 0;
   let pinchStartZoom = 1;
   let pinchAnchorTime = 0;
-  let scrubStartX = 0, scrubStartY = 0;
-  const TAP_MOVE_THRESHOLD = 8;
+  let scrubStartX = 0, scrubStartY = 0;   // to tell a tap (select) from a drag (just scan, no select)
+  const TAP_MOVE_THRESHOLD = 8;           // px — below this, pointerup still counts as a tap
 
   function pointerDist(pts){ return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y); }
   function pointerMid(pts){ return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }; }
@@ -1093,7 +1133,7 @@
 
     if (activePointers.size >= 2){
       stopEdgeScroll();
-      selectedSeg = null;
+      selectedSeg = null; // clear any lingering selection box before re-scaling the view
       refreshSelUI();
       const pts = Array.from(activePointers.values()).slice(0, 2);
       const dist = Math.max(1, pointerDist(pts));
@@ -1121,8 +1161,189 @@
     try { waveformWrap.releasePointerCapture(e.pointerId); } catch (_){}
     if (activePointers.size === 0){
       if (dragMode === 'scrub'){
+        // only a genuine tap (barely any movement) selects a piece to
+        // delete — a drag used purely to scan the audio no longer leaves
+        // a surprise white highlight box behind it
         const moved = Math.hypot(e.clientX - scrubStartX, e.clientY - scrubStartY);
-  // ---------- build final trimmed audio buffer ----------
+        if (moved < TAP_MOVE_THRESHOLD){
+          selectSegmentAt(audioEl.currentTime);
+        }
+      }
+      dragMode = null;
+      pinchStartDist = 0;
+      stopEdgeScroll();
+    }
+  }
+  waveformWrap.addEventListener('pointerup', endWfPointer);
+  waveformWrap.addEventListener('pointercancel', endWfPointer);
+
+  // ---------- zoom controls (buttons; pinch is handled above) ----------
+  function zoomBy(factor){
+    if (!audioBuffer) return;
+    selectedSeg = null; // never carry a highlight box into a new zoom level
+    refreshSelUI();
+    const anchorVirtual = origToVirtual(audioEl.currentTime);
+    const scrollRect = waveformScroll.getBoundingClientRect();
+    zoom = clampZoom(zoom * factor);
+    layoutWaveform();
+    waveformScroll.scrollLeft = Math.max(0, timeToX(anchorVirtual) - scrollRect.width / 2);
+    drawWaveform();
+    renderPlayheadOnly();
+  }
+  wfZoomInBtn.addEventListener('click', () => zoomBy(1.6));
+  wfZoomOutBtn.addEventListener('click', () => zoomBy(1 / 1.6));
+  wfZoomFitBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    selectedSeg = null;
+    refreshSelUI();
+    zoom = ZOOM_MIN;
+    layoutWaveform();
+    waveformScroll.scrollLeft = 0;
+    drawWaveform();
+    renderPlayheadOnly();
+  });
+
+  seekBack10Btn.addEventListener('click', () => seekBy(-10));
+  seekBack1Btn.addEventListener('click', () => seekBy(-1));
+  seekFwd1Btn.addEventListener('click', () => seekBy(1));
+  seekFwd10Btn.addEventListener('click', () => seekBy(10));
+  function seekBy(delta){
+    if (!audioBuffer) return;
+    loopSelection = false;
+    let t = clampToDuration(audioEl.currentTime + delta);
+    t = snapOutOfCutRegion(t, delta >= 0);
+    audioEl.currentTime = t;
+    renderPlayheadOnly();
+    autoScrollToPlayhead();
+    selectSegmentAt(t);
+  }
+
+  // ---------- split: drop a divider at the playhead, splitting whichever piece it's in ----------
+  const MIN_SEG = 0.12; // seconds — don't allow a split that leaves a sliver this thin
+  wfSplitBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    const t = audioEl.currentTime;
+    if (isInCutRegion(t)) return;
+    const seg = selectableSegments().find(s => t > s.start + 0.001 && t < s.end - 0.001);
+    if (!seg) return; // playhead is already sitting exactly on a boundary — nothing to split
+    if (t - seg.start < MIN_SEG || seg.end - t < MIN_SEG) return;
+    pushHistory();
+    splitPoints.push(t);
+    splitPoints.sort((a, b) => a - b);
+    // auto-select the piece just carved out to the left of the playhead, CapCut-style
+    selectedSeg = { start: seg.start, end: t };
+    refreshSelUI();
+    drawWaveform();
+  });
+
+  // ---------- listen to just the selected piece before deleting it ----------
+  wfPlaySelBtn.addEventListener('click', () => {
+    if (!selectedSeg || !audioBuffer) return;
+    loopSelection = true;
+    audioEl.currentTime = clampToDuration(selectedSeg.start);
+    audioEl.play();
+  });
+
+  // ---------- delete the selected piece — it's gone, remaining audio ripples together ----------
+  wfCutSelBtn.addEventListener('click', () => {
+    if (!selectedSeg || !audioBuffer) return;
+    const { start: a, end: b } = selectedSeg;
+    audioEl.pause();
+    loopSelection = false;
+    pushHistory();
+    addCutRegion(a, b);
+    splitPoints = splitPoints.filter(p => !isInCutRegion(p));
+    selectedSeg = null;
+    refreshSelUI();
+    drawWaveform();
+    renderCutList();
+    layoutWaveform();
+    renderPlayheadOnly();
+  });
+
+  function addCutRegion(start, end){
+    let merged = { start, end };
+    const remaining = [];
+    cutRegions.forEach(r => {
+      if (r.end < merged.start || r.start > merged.end){
+        remaining.push(r);
+      } else {
+        merged = { start: Math.min(merged.start, r.start), end: Math.max(merged.end, r.end) };
+      }
+    });
+    remaining.push(merged);
+    remaining.sort((x, y) => x.start - y.start);
+    cutRegions = remaining;
+  }
+
+  function removeCutRegion(idx){
+    pushHistory();
+    cutRegions.splice(idx, 1);
+    layoutWaveform();
+    drawWaveform();
+    renderCutList();
+    renderPlayheadOnly();
+  }
+
+  function renderCutList(){
+    if (cutRegions.length === 0){
+      cutListEl.innerHTML = '<p class="wf-hint" style="margin-top:0;">ยังไม่มีท่อนที่ลบ — ทั้งคลิปจะถูกส่งเข้า Whisper ตามปกติ</p>';
+      return;
+    }
+    cutListEl.innerHTML = cutRegions.map((r, i) =>
+      `<div class="cut-item"><span class="cut-range">✂️ ${fmtTime(r.start)}–${fmtTime(r.end)} (ตัดออก ${fmtTime(r.end - r.start)})</span><button type="button" data-idx="${i}" aria-label="ลบช่วงตัดนี้">✕</button></div>`
+    ).join('');
+    cutListEl.querySelectorAll('button[data-idx]').forEach(btn => {
+      btn.addEventListener('click', () => removeCutRegion(Number(btn.dataset.idx)));
+    });
+  }
+
+  wfPlayBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    loopSelection = false; // the main ▶ button always plays the whole clip forward
+    if (audioEl.paused) audioEl.play(); else audioEl.pause();
+  });
+  audioEl.addEventListener('play', () => { wfPlayBtn.textContent = '⏸'; startWfRaf(); });
+  audioEl.addEventListener('pause', () => { wfPlayBtn.textContent = '▶'; stopWfRaf(); });
+  audioEl.addEventListener('ended', () => { wfPlayBtn.textContent = '▶'; loopSelection = false; stopWfRaf(); updatePlayheadAndTime(); });
+
+  function startWfRaf(){
+    stopWfRaf();
+    function loop(){
+      updatePlayheadAndTime();
+      wfRafId = requestAnimationFrame(loop);
+    }
+    wfRafId = requestAnimationFrame(loop);
+  }
+  function stopWfRaf(){
+    if (wfRafId) cancelAnimationFrame(wfRafId);
+    wfRafId = null;
+  }
+  // Used while actually playing: also loops the "listen to selection" preview
+  // and keeps the playhead in view when zoomed in — pointer-drag scrubbing
+  // uses the lighter renderPlayheadOnly() instead so it never fights the user's
+  // finger by yanking the scroll position mid-drag.
+  function updatePlayheadAndTime(){
+    if (!audioBuffer) return;
+    if (loopSelection && selectedSeg){
+      if (audioEl.currentTime >= selectedSeg.end - 0.015){
+        audioEl.currentTime = clampToDuration(selectedSeg.start);
+      }
+    } else if (!audioEl.paused){
+      // normal forward playback ripples straight over any deleted piece,
+      // exactly like CapCut's preview does
+      for (const r of cutRegions){
+        if (audioEl.currentTime >= r.start - 0.01 && audioEl.currentTime < r.end){
+          audioEl.currentTime = r.end;
+          break;
+        }
+      }
+    }
+    renderPlayheadOnly();
+    autoScrollToPlayhead();
+  }
+
+  // ---------- build the final audio actually sent to Whisper + used in the render ----------
   function buildTrimmedAudioBuffer(buffer, regions){
     const sampleRate = buffer.sampleRate;
     const numChannels = buffer.numberOfChannels;
@@ -1195,6 +1416,9 @@
     return new Blob([arrBuf], { type: 'audio/wav' });
   }
 
+  // Returns the File that should actually be sent to Whisper and used for
+  // rendering: the original file untouched if no cuts were made, or a
+  // freshly-built WAV with the cut regions physically removed.
   function getFileForProcessing(){
     if (!audioBuffer || cutRegions.length === 0) return selectedFile;
     const trimmedBuffer = buildTrimmedAudioBuffer(audioBuffer, cutRegions);
@@ -1206,6 +1430,8 @@
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // Chrome/Android sometimes reports duration=Infinity for blob-URL media
+  // until the element is seeked once. Force a real duration value.
   function getReliableDuration(mediaEl){
     return new Promise((resolve) => {
       if (isFinite(mediaEl.duration) && mediaEl.duration > 0){
@@ -1223,6 +1449,23 @@
   }
 
   // ---------- helpers ----------
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function guessMimeType(file){
+    const name = file.name.toLowerCase();
+    if (file.type) return file.type;
+    if (name.endsWith('.wav')) return 'audio/wav';
+    if (name.endsWith('.m4a')) return 'audio/mp4';
+    return 'audio/mp3';
+  }
+
   function stripWs(s){
     return s.replace(/\s+/g, '');
   }
@@ -1291,20 +1534,62 @@
 
   // =========================================================
   // STEP B — Global alignment + two-pass finishing
+  // PASS 0 (global alignment, primary path): the old per-line greedy
+  // matcher picked a "best so far" window for line 1, then started
+  // line 2's search from wherever line 1 stopped — one bad local pick
+  // (very common with repeated words/names in Thai, or a filler word
+  // Whisper heard that isn't in the script) permanently shifts every
+  // line after it forward or backward. That's the "1 good clip out of
+  // 10" symptom: cascading, not random. Instead we run a single global
+  // sequence alignment (Needleman-Wunsch edit-distance DP) between the
+  // FULL edited script (all lines concatenated) and the FULL Whisper
+  // transcript (all words concatenated) once. This finds the
+  // minimum-total-edit-distance alignment across the whole clip at
+  // once, so a mismatch in one spot doesn't drag every later line off
+  // with it — deterministic and reproducible for the same inputs/edits.
+  // Each line boundary in the script is then read off the alignment
+  // path and converted to a timestamp by locating the matching
+  // position inside the aligned Whisper word and interpolating across
+  // that word's [start,end] by character offset.
+  // PASS 1 (windowed fallback): kept for pathologically long audio
+  // (alignLinesToWordsWindowed) where the O(N×M) DP grid would be too
+  // large to build responsively on a phone; same greedy logic as
+  // before.
+  // PASS 2 (linear interpolation): any line that still comes back
+  // unmatched (e.g. truly empty line) gets a start/end carved out of
+  // the silent gap between the anchors before and after it. With PASS 0
+  // this should be rare — nearly everything gets *some* real anchor —
+  // but the safety net stays so nothing silently disappears.
+  // PASS 3 (absolute acoustic lock, exact — no artificial padding): a
+  // line's start/end are the real Whisper-detected onset/offset of its
+  // speech, full stop. No minimum display floor, no manufactured 0.03s
+  // pop-cut before continuous speech — a real silence stays exactly as
+  // long as it really is (even under 0.1s) and continuous speech switches
+  // straight from one line to the next with no blank in between. The only
+  // adjustment is clamping so one line's end can never pass the next
+  // line's locked start.
   // =========================================================
+
+  // Guard: above this many (targetChars × asrChars) DP cells, fall back
+  // to the windowed matcher rather than risk locking up a phone browser.
   const GLOBAL_ALIGN_CELL_BUDGET = 12000000;
 
   function alignLinesToWords(lines, whisperWords) {
     const rawSegments = globalAlignLines(lines, whisperWords);
     if (rawSegments) return finishSegments(rawSegments, whisperWords);
+    // fallback path for very long audio
     return finishSegments(alignLinesToWordsWindowed(lines, whisperWords), whisperWords);
   }
 
+  // ---- PASS 0: global Needleman-Wunsch alignment over the whole clip ----
   function globalAlignLines(lines, whisperWords) {
     const strippedLines = lines.map(stripWs);
     const targetText = strippedLines.join('');
     const N = targetText.length;
 
+    // asrText: every Whisper word's stripped text concatenated, plus a
+    // parallel array so any character position can be mapped back to
+    // (which word, offset within that word) for time interpolation.
     let asrText = '';
     const asrCharMeta = [];
     whisperWords.forEach((w, wi) => {
@@ -1317,8 +1602,9 @@
     const M = asrText.length;
 
     if (N === 0 || M === 0) return null;
-    if (N * M > GLOBAL_ALIGN_CELL_BUDGET) return null;
+    if (N * M > GLOBAL_ALIGN_CELL_BUDGET) return null; // let caller fall back
 
+    // Needleman-Wunsch DP: match=0, mismatch=1, gap=1
     const W = M + 1;
     const dp = new Int32Array((N + 1) * W);
     for (let j = 0; j <= M; j++) dp[j] = j;
@@ -1340,6 +1626,8 @@
       }
     }
 
+    // Traceback: for every target position i (0..N), record the aligned
+    // asr position j — walking end-to-start and filling as we go.
     const targetPosToAsrPos = new Int32Array(N + 1);
     let i = N, j = M;
     targetPosToAsrPos[N] = M;
@@ -1358,11 +1646,44 @@
         j--;
         continue;
       }
+      // shouldn't happen, but never loop forever
       if (i > 0) { i--; targetPosToAsrPos[i] = j; } else { j--; }
     }
 
-    // จุดแก้ไขที่ 1: ใช้ Linear Interpolation ตามสัดส่วนตัวอักษรจริง ไม่ดีดกลับจุดเริ่มก้อนคำ
+    // Two boundary-time readings are needed, not one — a "start" boundary
+    // (beginning of the char at `pos`) and an "end" boundary (end of the
+    // char just before `pos`) are usually the same instant, but NOT when
+    // Whisper recorded a real acoustic gap between that word and the next
+    // one. Using a single function for both collapsed a line's end into
+    // the START of whatever comes after the gap instead of the true END
+    // of its own last word — silently erasing short real silences and
+    // dragging the previous line's on-screen time into the gap.
+    // Tier-2 fix: when a line boundary falls in the middle of a Whisper
+    // word (script splits where Whisper heard one continuous word), don't
+    // fabricate a timestamp by guessing a proportional point inside the
+    // word by character count — that point is not a real acoustic event.
+    // Instead SNAP the boundary to whichever real edge of that word (its
+    // detected start or its detected end) is closer. This trades "exactly
+    // where the script text splits" for "a timestamp Whisper actually
+    // measured", which is the worthwhile trade: the boundary now always
+    // lands on a real onset/offset instead of an estimated midpoint.
+    // Note: asrStartTime(pos) and asrEndTime(pos) are always called on the
+    // SAME pos for one line's end and the next line's start, and resolve
+    // to the same frac/word when the split is mid-word — so both sides of
+    // a boundary snap the same direction and stay contiguous (no new gap
+    // or overlap is introduced by snapping).
     function snapToNearestWordEdge(w, frac) {
+      // Linear interpolation across the word's own duration instead of a
+      // hard round to whichever edge frac is closer to. The old version
+      // used `frac < 0.5 ? w.start : w.end`, which meant any line split
+      // that happened to land in the first half of a fused multi-syllable
+      // Thai word token (Whisper frequently emits one timestamp for an
+      // unspaced run like "และนี่ก็คือ") snapped ALL THE WAY back to the
+      // start of that whole token — dragging the subtitle's on-screen time
+      // far earlier than the actual audio for that portion of the word.
+      // Interpolating proportionally by character offset keeps the
+      // boundary continuous and roughly tracks where in the token the
+      // audio actually is, instead of teleporting to one extreme.
       const duration = Math.max(0, w.end - w.start);
       return w.start + (duration * Math.max(0, Math.min(1, frac)));
     }
@@ -1393,6 +1714,13 @@
       cursor += sl.length;
       const st = asrStartTime(startPos);
       const en = Math.max(st + 0.02, asrEndTime(endPos));
+      // confidence score: how well the ASR text actually spanned by this
+      // line's aligned range resembles the line's own text — a real
+      // mismatch (Whisper misheard a word, script paraphrases the audio,
+      // a filler word got absorbed into the wrong line) shows up here as
+      // a low score even though the *global* alignment overall succeeded,
+      // which is exactly the "just this one line" case a uniform offset
+      // slider can never fix.
       const asrSlice = asrText.slice(Math.max(0, startPos), Math.min(M, Math.max(startPos, endPos)));
       const score = textSimilarity(sl, asrSlice);
       rawSegments.push({ text: lines[li], start: st, end: en, matched: true, score });
@@ -1400,6 +1728,7 @@
     return rawSegments;
   }
 
+  // ---- PASS 1 fallback: old per-line greedy windowed matcher ----
   function alignLinesToWordsWindowed(lines, whisperWords) {
     const words = whisperWords.map(w => stripWs(w.text));
     const N = words.length;
@@ -1412,6 +1741,7 @@
       if (!target) continue;
 
       let best = null;
+      // search forward using WORD_LOOKAHEAD, to force staying near the current audio position
       const searchLimit = Math.min(N, wp + WORD_LOOKAHEAD);
 
       for (let start = wp; start < searchLimit; start++) {
@@ -1420,6 +1750,7 @@
         for (let end = start; end < spanLimit; end++) {
           acc += words[end];
           const rawScore = textSimilarity(target, acc);
+          // Distance penalty: discourage matches far from the current pointer, to prevent skipping ahead
           const distancePenalty = (start - wp) * 0.03;
           const score = rawScore - distancePenalty;
 
@@ -1431,16 +1762,18 @@
         }
       }
 
+      // minimum similarity threshold
       if (best && best.rawScore >= MIN_MATCH_SCORE) {
         rawSegments.push({
           text: line,
           start: whisperWords[best.start].start,
-          end: whisperWords[best.end].end,
+          end: whisperWords[best.end].end, // real acoustic end time, no arbitrary buffer
           matched: true,
           score: best.rawScore
         });
-        wp = best.end + 1;
+        wp = best.end + 1; // advance pointer forward
       } else {
+        // if no match found, nudge wp forward proportionally to line length to avoid getting stuck
         rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
         wp = Math.min(N, wp + Math.max(1, Math.round(target.length / 7)));
       }
@@ -1448,7 +1781,9 @@
     return rawSegments;
   }
 
+  // ---- PASS 2 + PASS 3: shared finishing pipeline for either path above ----
   function finishSegments(rawSegments, whisperWords) {
+    // PASS 2: Block-based Continuous Interpolation (distribute time across unmatched blocks so nothing disappears)
     const totalAudioDuration = whisperWords.length > 0 ? whisperWords[whisperWords.length - 1].end : 30;
     let idx = 0;
 
@@ -1458,22 +1793,26 @@
         continue;
       }
 
+      // find the start/end of this unmatched block of lines
       const blockStart = idx;
       while (idx < rawSegments.length && !rawSegments[idx].matched) {
         idx++;
       }
-      const blockEnd = idx;
+      const blockEnd = idx; // exclusive
 
+      // find the previous reference time
       let tPrev = 0;
       if (blockStart > 0 && rawSegments[blockStart - 1].end != null) {
         tPrev = rawSegments[blockStart - 1].end;
       }
 
+      // find the next reference time
       let tNext = totalAudioDuration;
       if (blockEnd < rawSegments.length && rawSegments[blockEnd].start != null) {
         tNext = rawSegments[blockEnd].start;
       }
 
+      // total character length of the unmatched block
       let totalChars = 0;
       for (let k = blockStart; k < blockEnd; k++) {
         totalChars += Math.max(1, stripWs(rawSegments[k].text).length);
@@ -1482,6 +1821,10 @@
       const availableDuration = Math.max(0.4 * (blockEnd - blockStart), tNext - tPrev);
       let currentCursor = tPrev;
 
+      // distribute time proportionally to actual character length, but only
+      // fill 80% of each slot with active text — the remaining 20% is left
+      // as a silence cushion so interpolated lines still get a visible gap
+      // between them instead of touching edge-to-edge.
       for (let k = blockStart; k < blockEnd; k++) {
         const charLen = Math.max(1, stripWs(rawSegments[k].text).length);
         const slotDuration = (charLen / totalChars) * availableDuration;
@@ -1492,36 +1835,73 @@
       }
     }
 
+    // PASS 3: Absolute Acoustic Lock — exact real timing, no artificial padding.
+    // A subtitle appears the instant Whisper detected speech starting and
+    // disappears the instant it detected that speech ending — always, even
+    // if that's only 0.1s. A real silence between two lines stays exactly
+    // that long and blank; continuous speech with no real gap switches
+    // straight from one line's text to the next with no manufactured blank
+    // frame in between. The only adjustment left is a hard clamp so one
+    // line's end can never reach past the next line's locked start (which
+    // would make two subtitles overlap on screen) and a 20ms epsilon purely
+    // to avoid a literal zero-duration draw call — neither one holds text
+    // on screen a moment longer than the audio actually does.
     const finalSegments = [];
 
     for (let i = 0; i < rawSegments.length; i++) {
       const cur = rawSegments[i];
       const next = rawSegments[i + 1];
 
-      // จุดแก้ไขที่ 2: หน่วง Safe Delay +25ms ให้สัมพันธ์กับการออกเสียงจริงและแก้ Cross-Attention Bias
+      // lock start to the moment the first word was actually spoken, with a
+      // small perceptual safe offset for matched (ASR-anchored) lines only.
+      // Whisper's cross-attention timestamps for Thai are biased early —
+      // the model tends to "activate" as soon as the mouth starts moving,
+      // roughly 20-30ms before the audible onset — so an unmatched/
+      // interpolated line (which was never anchored to a real ASR
+      // timestamp in the first place) gets no offset, but a matched line
+      // gets nudged +25ms later to compensate for that measured bias.
       let exactStart = cur.start + (cur.matched ? 0.025 : 0);
-      let exactEnd = cur.end;
+      let exactEnd = cur.end; // exact moment the speech for this line actually ends — no floor, no padding
 
       if (next && next.start != null) {
+        // only ever clamp to prevent overlap; never extend, never pad,
+        // never manufacture an artificial gap when there isn't a real one
         if (exactEnd > next.start) {
           exactEnd = next.start;
         }
       }
 
+      // guard against literal zero/negative duration from alignment noise —
+      // this is a 20ms floor purely to keep the draw call valid, not a
+      // stylistic minimum display time
       if (exactEnd <= exactStart) {
         exactEnd = exactStart + 0.02;
+      }
+
+      // the +25ms nudge above must never push exactStart past exactEnd
+      // (a very short line) or past the next line's locked start (overlap)
+      if (exactStart >= exactEnd) {
+        exactStart = Math.max(cur.start, exactEnd - 0.02);
+      }
+      if (next && next.start != null && exactStart >= next.start) {
+        exactStart = Math.max(cur.start, next.start - 0.02);
       }
 
       finalSegments.push({
         text: cur.text,
         start: Number(exactStart.toFixed(2)),
         end: Number(exactEnd.toFixed(2)),
+        // an interpolated (never-matched) block gets a hard 0 — it was
+        // never anchored to real ASR text at all, so it always deserves
+        // a review flag regardless of whatever score field it carried in
         score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
       });
     }
 
     return finalSegments;
   }
+
+
   function levenshteinDistance(a, b){
     const m = a.length, n = b.length;
     if (m === 0) return n;
@@ -1578,6 +1958,22 @@
 
   // =========================================================
   // AUDIO-ENERGY BOUNDARY REFINEMENT
+  // Whisper's word-level timestamps are estimated from cross-attention
+  // weights, not measured directly against the waveform — they can drift
+  // by anywhere from ~50ms to several hundred ms, especially right at the
+  // edge of an utterance. That drift is exactly what makes a subtitle look
+  // "kind of right but not quite" even when the line-to-word matching
+  // itself is correct. This pass corrects for it using the ACTUAL decoded
+  // audio (already in memory for rendering, so this costs nothing extra to
+  // fetch): for every segment boundary that borders real silence (start of
+  // a line after a gap, end of a line before a gap — including the very
+  // start/end of the clip), it scans a short window of real RMS energy
+  // around Whisper's reported timestamp and snaps to the closest point
+  // where the waveform actually crosses from silence to speech (or back).
+  // Boundaries between two touching lines (no gap — a script split in the
+  // middle of continuous speech) are left alone on purpose: there is no
+  // real acoustic event to snap to there, only a text-alignment choice,
+  // and snapping would just introduce noise.
   // =========================================================
   function refineSegmentBoundariesWithEnergy(segments, audioBuffer){
     const sr = audioBuffer.sampleRate;
@@ -1599,8 +1995,8 @@
       }
     }
 
-    const FRAME = Math.max(1, Math.round(sr * 0.01));
-    const HOP = Math.max(1, Math.round(sr * 0.005));
+    const FRAME = Math.max(1, Math.round(sr * 0.01));   // 10ms analysis window
+    const HOP = Math.max(1, Math.round(sr * 0.005));    // 5ms hop
     const frameCount = Math.max(1, Math.floor((totalSamples - FRAME) / HOP) + 1);
     const envelope = new Float32Array(frameCount);
     for (let f = 0; f < frameCount; f++){
@@ -1612,25 +2008,50 @@
       }
       envelope[f] = Math.sqrt(sumSq / FRAME);
     }
-
     const frameTime = (f) => f * HOP / sr;
     const timeToFrame = (t) => Math.max(0, Math.min(frameCount - 1, Math.round((t * sr) / HOP)));
 
+    // dynamic noise floor from the quietest ~15% of the whole clip, so this
+    // adapts to each recording's own room tone / mic gain instead of a
+    // fixed number that would be wrong half the time
     const sortedEnv = Array.from(envelope).sort((a, b) => a - b);
     const noiseFloor = sortedEnv[Math.floor(sortedEnv.length * 0.15)] || 0;
 
+    // Onset vs offset need different thresholds, not one shared value.
+    // A breath intake or a lip-smack right before speech starts is quieter
+    // than real speech but still well above room-tone noise floor — a low
+    // threshold (tuned for "has speech definitely stopped yet") happily
+    // treats that breath as the onset and snaps the subtitle's start back
+    // into it. Onset therefore uses a much higher bar so only genuine
+    // speech-level energy counts as "sound started". Offset keeps a low
+    // bar on purpose, so the subtitle holds through natural tapering
+    // instead of cutting off the instant loudness dips.
     const thresholdOnset = Math.max(noiseFloor * 5.0, noiseFloor + 0.015);
     const thresholdOffset = Math.max(noiseFloor * 2.5, noiseFloor + 0.003);
 
-    function snapOnset(t){
-      const centerF = timeToFrame(t);
-      const maxLookbackFrames = Math.max(1, Math.round(0.04 / (HOP / sr)));
-      const maxLookaheadFrames = Math.max(1, Math.round(0.15 / (HOP / sr)));
-      const startF = Math.max(1, centerF - maxLookbackFrames);
-      const endF = Math.min(frameCount - 1, centerF + maxLookaheadFrames);
+    // Onset search is asymmetric on purpose. Looking backward has a tight
+    // 40ms leash so the scan can never wander back far enough to land on a
+    // pre-utterance breath/mouth-open transient (those typically sit
+    // 60-150ms before real speech). Looking forward gets much more room
+    // (150ms) because Whisper's Thai timestamps trend EARLY due to
+    // cross-attention activating as soon as the mouth starts moving — the
+    // real onset is usually somewhere ahead of Whisper's reported start,
+    // never far behind it.
+    const maxLookbackFrames = Math.max(1, Math.round(0.04 / (HOP / sr)));
+    const maxLookaheadFrames = Math.max(1, Math.round(0.15 / (HOP / sr)));
+    const SEARCH_SEC_OFFSET = 0.2; // how far around Whisper's end timestamp to look
+    const offsetSearchSpan = Math.max(1, Math.round(SEARCH_SEC_OFFSET / (HOP / sr)));
+    // how many consecutive low-energy frames must follow a candidate
+    // offset point before it counts as "speech actually stopped" —
+    // rejects a single quiet syllable gap from being mistaken for the end
+    const OFFSET_SUSTAIN_FRAMES = Math.max(1, Math.round(0.03 / (HOP / sr)));
 
+    function snapOnset(t){ // nearest silence -> speech transition
+      const centerF = timeToFrame(t);
+      const lo = Math.max(1, centerF - maxLookbackFrames);
+      const hi = Math.min(frameCount - 1, centerF + maxLookaheadFrames);
       let best = null, bestDist = Infinity;
-      for (let f = startF; f <= endF; f++){
+      for (let f = lo; f <= hi; f++){
         if (envelope[f - 1] < thresholdOnset && envelope[f] >= thresholdOnset){
           const d = Math.abs(f - centerF);
           if (d < bestDist){ bestDist = d; best = f; }
@@ -1638,16 +2059,22 @@
       }
       return best != null ? frameTime(best) : t;
     }
-
-    function snapOffset(t){
+    function snapOffset(t){ // nearest speech -> silence transition, sustained
       const centerF = timeToFrame(t);
-      const searchSpan = Math.max(1, Math.round(0.2 / (HOP / sr)));
-      const startF = Math.max(1, centerF - searchSpan);
-      const endF = Math.min(frameCount - 1, centerF + searchSpan);
-
+      const lo = Math.max(1, centerF - offsetSearchSpan);
+      const hi = Math.min(frameCount - 1, centerF + offsetSearchSpan);
       let best = null, bestDist = Infinity;
-      for (let f = startF; f <= endF; f++){
+      for (let f = lo; f <= hi; f++){
         if (envelope[f - 1] >= thresholdOffset && envelope[f] < thresholdOffset){
+          // require energy to stay below threshold for a short sustain
+          // window afterward, so a brief dip mid-word doesn't get read as
+          // the final offset
+          let sustained = true;
+          const sustainEnd = Math.min(frameCount - 1, f + OFFSET_SUSTAIN_FRAMES);
+          for (let s = f; s <= sustainEnd; s++){
+            if (envelope[s] >= thresholdOffset){ sustained = false; break; }
+          }
+          if (!sustained) continue;
           const d = Math.abs(f - centerF);
           if (d < bestDist){ bestDist = d; best = f; }
         }
@@ -1672,7 +2099,7 @@
         if (snapped > seg.start + 0.02) seg.end = snapped;
       }
     }
-
+    // re-clamp in case refinement nudged two segments into each other
     for (let i = 0; i < segments.length - 1; i++){
       if (segments[i].matched && segments[i + 1].matched && segments[i].end > segments[i + 1].start){
         segments[i].end = segments[i + 1].start;
@@ -1682,7 +2109,17 @@
   }
 
   // =========================================================
-  // RENDER (WebCodecs via Mediabunny)
+  // RENDER — deterministic, offline (WebCodecs via Mediabunny)
+  // The old approach recorded canvas + audio in real time through
+  // MediaRecorder while the audio actually played back — so the result
+  // depended on the phone keeping up at that exact moment. Any hiccup
+  // (thermal throttling, another app stealing CPU) dropped or delayed
+  // frames and baked a slightly-wrong clip that only showed up after the
+  // fact, which is why some renders needed 2-3 tries. This version never
+  // "plays" anything: audio is decoded once into raw samples, video frames
+  // are drawn and encoded one at a time on a fixed timeline, and both are
+  // muxed into an mp4. A slow device just takes longer — the output timing
+  // is identical no matter how the render actually went, every time.
   // =========================================================
   const MEDIABUNNY_CDN = 'https://cdn.jsdelivr.net/npm/mediabunny@1.54.0/+esm';
   let mediabunnyModulePromise = null;
@@ -1735,7 +2172,12 @@
     return { blob, durationSeconds: durationSec };
   }
 
-  // ---------- STEP EXECUTION ----------
+  // ---------- STEP — confirm lines, run Whisper + matching + acoustic
+  // refinement, then render straight away. No manual per-line review step:
+  // Whisper's global alignment plus the energy-refinement pass above
+  // handle the common cases automatically; if a specific clip still comes
+  // out wrong, nudge the whole-clip offset slider above or edit the script
+  // and re-run. ----------
   startBtn.addEventListener('click', async () => {
     hideError();
     resultCard.classList.remove('show');
@@ -1769,6 +2211,7 @@
       showStatus('กำลังจับคู่บรรทัดกับเสียง...');
 
       let segments = alignLinesToWords(lines, whisperWords);
+      // uniform correction, only for a whole-clip bias (see slider hint)
       if (SYNC_OFFSET_MS !== 0){
         const off = SYNC_OFFSET_MS / 1000;
         segments = segments.map(s => ({
