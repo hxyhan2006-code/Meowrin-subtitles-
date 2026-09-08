@@ -127,6 +127,9 @@
   a.dl-btn.secondary-dl{background:var(--panel-2);color:var(--text);border:1px solid var(--line);font-weight:500;}
   .foot-note{font-size:12px;color:var(--text-dim);margin-top:4px;}
   .badge{display:inline-block;font-size:11px;color:var(--green);border:1px solid var(--green-dim);border-radius:5px;padding:2px 6px;margin-left:6px;}
+  .chip-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .chip-btn{flex:1 1 0;min-width:56px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;font-weight:700;padding:9px 4px;cursor:pointer;text-align:center;}
+  .chip-btn.active{border-color:var(--green);color:var(--green);background:rgba(57,217,138,.10);}
 
   /* ---------- settings modal ---------- */
   .modal-backdrop{
@@ -251,9 +254,9 @@
     <h2>1 · ไฟล์เสียงพากย์ (.mp3 / .wav / .m4a)</h2>
     <div class="file-drop" id="fileDrop">
       <span class="icon">🎙️</span>
-      <div>แตะเพื่อเลือกไฟล์เสียง</div>
-      <div class="hint">เสียงพากย์เพียวๆ ยังไม่ใส่เพลง/เอฟเฟกต์</div>
-      <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,audio/*">
+      <div>แตะเพื่อเลือกไฟล์เสียง หรือไฟล์วิดีโอ</div>
+      <div class="hint">ไฟล์เสียงพากย์เพียวๆ หรือไฟล์วิดีโอ (.mp4/.mov/.webm) — ถ้าเป็นวิดีโอจะดึงเสียงออกมาให้อัตโนมัติ</div>
+      <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.mp4,.mov,.webm,.mkv,.m4v,audio/*,video/*">
     </div>
     <div class="file-info" id="fileInfo"></div>
     <audio id="audioEl" style="display:none;"></audio>
@@ -281,23 +284,6 @@
       <span class="wf-time" id="wfTime">0:00 / 0:00</span>
     </div>
 
-    <label class="field-label" style="margin-top:10px;">ลากเลื่อนตำแหน่ง (นิ้วเดียว ใช้ได้แม้ซูมอยู่)</label>
-    <div class="fine-slider-row">
-      <button type="button" class="fs-btn" id="wfSeekMinus" aria-label="ถอยทีละนิด">−</button>
-      <div class="fs-track-wrap" id="wfSeekTrackWrap">
-        <div class="fs-track"><div class="fs-fill" id="wfSeekFill"></div></div>
-        <div class="fs-thumb" id="wfSeekThumb"></div>
-      </div>
-      <button type="button" class="fs-btn" id="wfSeekPlus" aria-label="เดินหน้าทีละนิด">+</button>
-    </div>
-
-    <div class="wf-seek-row">
-      <button type="button" class="fs-btn wf-seek-btn" id="seekBack10">«10</button>
-      <button type="button" class="fs-btn wf-seek-btn" id="seekBack1">‹1</button>
-      <button type="button" class="fs-btn wf-seek-btn" id="seekFwd1">1›</button>
-      <button type="button" class="fs-btn wf-seek-btn" id="seekFwd10">10»</button>
-    </div>
-
     <div class="wf-sel-actions">
       <button type="button" class="wf-split-btn" id="wfSplitBtn" disabled>✂️ แบ่งแยก</button>
       <button type="button" class="wf-play-sel-btn" id="wfPlaySelBtn" disabled>▶ ฟัง</button>
@@ -319,6 +305,37 @@
         <button type="button" class="expand-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
       </div>
     </div>
+    <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed var(--line);">
+      <label class="field-label" for="rawScript">🪄 แยกบรรทัดอัตโนมัติด้วย AI (ไม่บังคับ) — วางสคริปต์ดิบที่ยังไม่ตัดบรรทัด (เว้นว่างได้ถ้าใช้โหมด "เติมจากเสียง")</label>
+      <textarea id="rawScript" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่... หรือเว้นว่างถ้าให้ AI ฟังเอาเองทั้งหมด" style="min-height:90px;"></textarea>
+
+      <label class="field-label" style="margin-top:12px;">โหมดการอ้างอิงสคริปต์</label>
+      <div class="chip-row" id="scriptModeChips">
+        <button type="button" class="chip-btn" data-mode="strict">🔒 ยึดสคริปต์ 100%</button>
+        <button type="button" class="chip-btn" data-mode="fill">✨ เติมจากเสียงที่ได้ยินด้วย</button>
+      </div>
+      <p class="wf-hint" id="scriptModeHint"></p>
+
+      <label class="field-label" style="margin-top:12px;">🎯 เป้าหมายจำนวนคำต่อบรรทัด (ควรอยู่ในช่วงนี้เกือบทุกบรรทัด ยกเว้นกรณีจำเป็นจริงๆ เท่านั้น)</label>
+      <div class="chip-row" id="wordRangeChips">
+        <button type="button" class="chip-btn" data-min="1" data-max="3">1-3</button>
+        <button type="button" class="chip-btn" data-min="2" data-max="3">2-3</button>
+        <button type="button" class="chip-btn" data-min="2" data-max="4">2-4</button>
+        <button type="button" class="chip-btn" data-min="3" data-max="5">3-5</button>
+      </div>
+      <input type="text" id="wordRangeCustom" placeholder="หรือกำหนดเอง เช่น 4-6" style="margin-top:8px;">
+
+      <label class="field-label" style="margin-top:12px;">🗣️ คำศัพท์เฉพาะ/ชื่อตัวละคร (ไม่บังคับ)</label>
+      <input type="text" id="whisperHintTerms" placeholder="เช่น ชื่อตัวละคร, ศัพท์เฉพาะทาง — คั่นด้วยจุลภาค">
+      <p class="wf-hint">ช่วย Whisper ถอดเสียงคำพวกนี้ได้แม่นขึ้นเวลาฟังไม่ชัด (เช่นชื่อเฉพาะ/ศัพท์แปลก) — เว้นว่างได้ถ้าไม่มี ใช้กับทุกครั้งที่เรียก Whisper ทั้งขั้น "แยกบรรทัดด้วย AI" และขั้น "สร้างคลิป"</p>
+
+      <button type="button" class="expand-btn" id="autoSplitBtn" style="margin-top:14px;width:100%;padding:11px;">🪄 แยกบรรทัดด้วย AI (ใช้ไฟล์เสียงจากข้อ 1)</button>
+      <p class="wf-hint">ขั้นตอน: จับเวลาเสียงจริงด้วย Whisper ก่อน แล้วส่งสคริปต์ดิบ + จังหวะเสียงจริง (ไม่ใช่ไฟล์เสียงดิบ) ให้ Gemini ช่วยตัดบรรทัด — ผลลัพธ์จะไปเติมในช่องด้านล่าง ตรวจ/แก้ได้ก่อนกด "สร้างคลิป" เสมอ (ขั้นตอนนี้แยกจากขั้น "สร้างคลิป" คนละรอบ Whisper กัน ไม่กระทบกัน)</p>
+      <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
+      <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
+      <div class="error-box" id="autoSplitErrorBox"></div>
+    </div>
+
     <label class="field-label" for="editedScript">วาง/พิมพ์สคริปต์ที่ตัดวรรคมาจากที่อื่นแล้ว ทีละบรรทัด — กด Enter เพื่อขึ้นบรรทัดใหม่</label>
     <textarea id="editedScript" placeholder="พิมพ์หรือวางสคริปต์ทีละบรรทัด..."></textarea>
   </div>
@@ -394,6 +411,10 @@
         <label class="field-label" for="apiKeyGroq">Groq API Key (จับเวลาเสียง Whisper)</label>
         <input type="password" id="apiKeyGroq" placeholder="gsk_...">
       </div>
+      <div>
+        <label class="field-label" for="apiKeyGemini">Gemini API Key (แยกบรรทัดสคริปต์อัตโนมัติ)</label>
+        <input type="password" id="apiKeyGemini" placeholder="AIza...">
+      </div>
     </div>
     <button type="button" class="primary" id="settingsSaveBtn">บันทึกและปิด</button>
   </div>
@@ -421,6 +442,11 @@
   const BOTTOM_MARGIN_RATIO = 0.10;
   const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
   const GROQ_MODEL = "whisper-large-v3";
+  const GEMINI_MODEL = "gemini-3.1-flash-lite"; // NOTE: Google renames/retires Gemini models often — if this
+                                                  // starts 404-ing again, the error message itself usually names
+                                                  // the replacement model to put here (e.g. "gemini-3.6-flash").
+  const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const PAUSE_MARK_THRESHOLD_SEC = 0.25; // gap between two whisper words above this is marked [PAUSE] for Gemini
   // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
   const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start (widened to stop fast/short words from falling outside the window)
   const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
@@ -429,6 +455,16 @@
 
   // ---------- elements ----------
   const apiKeyGroqInput = document.getElementById('apiKeyGroq');
+  const apiKeyGeminiInput = document.getElementById('apiKeyGemini');
+  const rawScriptInput = document.getElementById('rawScript');
+  const autoSplitBtn = document.getElementById('autoSplitBtn');
+  const autoSplitStatusRow = document.getElementById('autoSplitStatusRow');
+  const autoSplitStatusText = document.getElementById('autoSplitStatusText');
+  const autoSplitStatsEl = document.getElementById('autoSplitStats');
+  const autoSplitErrorBox = document.getElementById('autoSplitErrorBox');
+  const whisperHintTermsInput = document.getElementById('whisperHintTerms');
+  const scriptModeHint = document.getElementById('scriptModeHint');
+  const wordRangeCustomInput = document.getElementById('wordRangeCustom');
   const fileDrop = document.getElementById('fileDrop');
   const audioFileInput = document.getElementById('audioFile');
   const fileInfo = document.getElementById('fileInfo');
@@ -477,15 +513,6 @@
   const wfZoomFitBtn = document.getElementById('wfZoomFitBtn');
   const wfZoomLabel = document.getElementById('wfZoomLabel');
   const cutListEl = document.getElementById('cutList');
-  const seekBack10Btn = document.getElementById('seekBack10');
-  const seekBack1Btn = document.getElementById('seekBack1');
-  const seekFwd1Btn = document.getElementById('seekFwd1');
-  const seekFwd10Btn = document.getElementById('seekFwd10');
-  const wfSeekTrackWrap = document.getElementById('wfSeekTrackWrap');
-  const wfSeekThumb = document.getElementById('wfSeekThumb');
-  const wfSeekFill = document.getElementById('wfSeekFill');
-  const wfSeekMinusBtn = document.getElementById('wfSeekMinus');
-  const wfSeekPlusBtn = document.getElementById('wfSeekPlus');
   const wfUndoBtn = document.getElementById('wfUndoBtn');
   const wfRedoBtn = document.getElementById('wfRedoBtn');
 
@@ -567,7 +594,6 @@
       waveformScroll.scrollLeft = Math.max(0, Math.min(maxScroll, waveformScroll.scrollLeft + dx));
       audioEl.currentTime = clientXToOrigTime(edgeScrollPointerX);
       renderPlayheadOnly();
-      updateSeekSliderFromTime();
     }
     edgeScrollRafId = requestAnimationFrame(edgeScrollLoop);
   }
@@ -585,6 +611,80 @@
   apiKeyGroqInput.addEventListener('input', () => {
     localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
   });
+  const savedGemini = localStorage.getItem('gemini_api_key');
+  if (savedGemini) apiKeyGeminiInput.value = savedGemini;
+  apiKeyGeminiInput.addEventListener('input', () => {
+    localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
+  });
+
+  // ---------- persist raw (unsplit) script so a refresh doesn't lose it ----------
+  const savedRawScript = localStorage.getItem('gs_raw_script');
+  if (savedRawScript) rawScriptInput.value = savedRawScript;
+  rawScriptInput.addEventListener('input', () => {
+    localStorage.setItem('gs_raw_script', rawScriptInput.value);
+  });
+
+  // ---------- word-range preset chips + custom input (target line length for
+  // AI split — a guideline passed into the Gemini prompt, not a hard cap; the
+  // prompt itself tells Gemini it may exceed either edge when context calls
+  // for it) ----------
+  let WORD_RANGE_MIN = 2, WORD_RANGE_MAX = 3; // default matches the tool's original fixed target
+  const wordRangeChips = document.querySelectorAll('#wordRangeChips .chip-btn');
+  function setWordRangeActive(min, max, persist){
+    WORD_RANGE_MIN = min; WORD_RANGE_MAX = max;
+    wordRangeChips.forEach(btn => {
+      const isActive = Number(btn.dataset.min) === min && Number(btn.dataset.max) === max;
+      btn.classList.toggle('active', isActive);
+    });
+    if (persist) localStorage.setItem('gs_word_range', `${min}-${max}`);
+  }
+  (function initWordRange(){
+    const saved = localStorage.getItem('gs_word_range');
+    const m = saved && saved.match(/^(\d+)-(\d+)$/);
+    if (m){
+      const mn = Number(m[1]), mx = Number(m[2]);
+      const matchesPreset = Array.from(wordRangeChips).some(btn => Number(btn.dataset.min) === mn && Number(btn.dataset.max) === mx);
+      if (matchesPreset){ setWordRangeActive(mn, mx, false); }
+      else { WORD_RANGE_MIN = mn; WORD_RANGE_MAX = mx; wordRangeCustomInput.value = `${mn}-${mx}`; }
+    } else {
+      setWordRangeActive(2, 3, false);
+    }
+  })();
+  wordRangeChips.forEach(btn => {
+    btn.addEventListener('click', () => {
+      wordRangeCustomInput.value = '';
+      setWordRangeActive(Number(btn.dataset.min), Number(btn.dataset.max), true);
+    });
+  });
+  wordRangeCustomInput.addEventListener('input', () => {
+    const m = wordRangeCustomInput.value.trim().match(/^(\d+)\s*-\s*(\d+)$/);
+    if (!m) return;
+    const mn = Number(m[1]), mx = Number(m[2]);
+    if (mn < 1 || mx < mn) return;
+    WORD_RANGE_MIN = mn; WORD_RANGE_MAX = mx;
+    wordRangeChips.forEach(btn => btn.classList.remove('active'));
+    localStorage.setItem('gs_word_range', `${mn}-${mx}`);
+  });
+
+  // ---------- script-reference mode: strict (use only the user's own script
+  // text, silently skip audio the script doesn't cover) vs fill (use Whisper's
+  // transcript to cover gaps the script doesn't have text for, or the whole
+  // clip if the raw script is empty) — default is strict, the safer option ----------
+  let SCRIPT_FILL_MODE = false;
+  const scriptModeChips = document.querySelectorAll('#scriptModeChips .chip-btn');
+  const SCRIPT_MODE_STRICT_HINT = 'ใช้เฉพาะคำที่คุณเขียนมาเป๊ะๆ ช่วงเสียงที่สคริปต์ไม่ครอบคลุมจะถูกข้ามไปเงียบๆ ไม่แต่งเติมเอง (ปลอดภัยกว่า แนะนำถ้าเขียนสคริปต์มาครบแล้ว)';
+  const SCRIPT_MODE_FILL_HINT = 'ช่วงที่สคริปต์ไม่ครอบคลุม จะดึงคำจาก Whisper มาเติมแทน และขึ้นต้นบรรทัดนั้นด้วย [AI] ให้สังเกตง่าย (ถ้าเว้นสคริปต์ว่างทั้งหมด ทุกบรรทัดจะขึ้น [AI]) Whisper อาจฟังผิดคำได้ — ตรวจทานก่อนใช้จริงเสมอ';
+  function setScriptMode(mode, persist){
+    SCRIPT_FILL_MODE = mode === 'fill';
+    scriptModeChips.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+    scriptModeHint.textContent = SCRIPT_FILL_MODE ? SCRIPT_MODE_FILL_HINT : SCRIPT_MODE_STRICT_HINT;
+    if (persist) localStorage.setItem('gs_script_mode', mode);
+  }
+  (function initScriptMode(){
+    const saved = localStorage.getItem('gs_script_mode');
+    setScriptMode(saved === 'fill' ? 'fill' : 'strict', false);
+  })();
+  scriptModeChips.forEach(btn => btn.addEventListener('click', () => setScriptMode(btn.dataset.mode, true)));
 
   // ---------- settings modal (API Key) ----------
   function openSettingsModal(){
@@ -596,6 +696,7 @@
   settingsBtn.addEventListener('click', openSettingsModal);
   settingsSaveBtn.addEventListener('click', () => {
     localStorage.setItem('groq_api_key', apiKeyGroqInput.value.trim());
+    localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
     closeSettingsModal();
   });
   settingsModalBackdrop.addEventListener('click', (e) => {
@@ -766,20 +867,8 @@
   audioFileInput.addEventListener('change', async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    selectedFile = f;
-    audioEl.src = URL.createObjectURL(f);
-    await new Promise(res => {
-      audioEl.addEventListener('loadedmetadata', res, { once: true });
-    });
-    const durationSec = await getReliableDuration(audioEl);
-    const mins = Math.floor(durationSec / 60);
-    const secs = Math.round(durationSec % 60).toString().padStart(2, '0');
-    fileInfo.innerHTML = `<b>${escapeHtml(f.name)}</b> · ${mins}:${secs}`;
-    fileInfo.classList.add('show');
 
-    // reset trim state for the newly selected file, then try to decode it
-    // for the waveform. If decoding fails (unsupported format on this
-    // browser), the app still works normally — trimming is just unavailable.
+    // reset trim state for the newly selected file up front
     cutRegions = [];
     splitPoints = [];
     selectedSeg = null;
@@ -792,8 +881,48 @@
     wfSplitBtn.disabled = true;
     refreshSelUI();
     trimCard.style.display = 'none';
+    fileInfo.classList.remove('show');
+
+    // If the selection is a video file, pull its audio track out first via
+    // Mediabunny (the same library already used for muxing the final
+    // render) and continue with a plain audio File from that point on —
+    // everything downstream (Whisper, waveform, render) only ever sees an
+    // audio file, exactly as before, so none of the existing pipeline
+    // needs to know a video was ever involved.
+    let fileForPipeline = f;
+    let extractedBuffer = null;
+    if (isVideoFile(f)){
+      fileInfo.innerHTML = '🎬 กำลังดึงเสียงออกจากไฟล์วิดีโอ...';
+      fileInfo.classList.add('show');
+      try {
+        extractedBuffer = await extractAudioFromVideo(f);
+        const wavBlob = audioBufferToWavBlob(extractedBuffer);
+        const baseName = f.name.replace(/\.[^.]+$/, '') || 'video';
+        fileForPipeline = new File([wavBlob], `${baseName}_audio.wav`, { type: 'audio/wav' });
+      } catch (err){
+        console.error(err);
+        fileInfo.innerHTML = `ดึงเสียงจากวิดีโอไม่สำเร็จ: ${escapeHtml(err.message || String(err))}`;
+        fileInfo.classList.add('show');
+        return;
+      }
+    }
+
+    selectedFile = fileForPipeline;
+    audioEl.src = URL.createObjectURL(fileForPipeline);
+    await new Promise(res => {
+      audioEl.addEventListener('loadedmetadata', res, { once: true });
+    });
+    const durationSec = await getReliableDuration(audioEl);
+    const mins = Math.floor(durationSec / 60);
+    const secs = Math.round(durationSec % 60).toString().padStart(2, '0');
+    fileInfo.innerHTML = `<b>${escapeHtml(f.name)}</b> · ${mins}:${secs}${extractedBuffer ? ' <span class="badge">ดึงเสียงจากวิดีโอแล้ว</span>' : ''}`;
+    fileInfo.classList.add('show');
+
+    // decode for the waveform. If decoding fails (unsupported format on this
+    // browser), the app still works normally — trimming is just unavailable.
+    // (video files already have their AudioBuffer from the extraction step above)
     try {
-      audioBuffer = await decodeAudioFile(f);
+      audioBuffer = extractedBuffer || await decodeAudioFile(fileForPipeline);
       waveformPeaks = computePeaks(audioBuffer, 2000);
       trimCard.style.display = 'block';
       wfSplitBtn.disabled = false;
@@ -817,6 +946,62 @@
     } finally {
       tmpCtx.close();
     }
+  }
+
+  function isVideoFile(file){
+    return (file.type && file.type.startsWith('video/')) || /\.(mp4|mov|webm|mkv|m4v)$/i.test(file.name || '');
+  }
+
+  // Demux + decode a video file's audio track into a single AudioBuffer,
+  // using Mediabunny (already a dependency of this file for muxing the
+  // rendered output). Runs entirely client-side, no upload/transcoding
+  // service involved.
+  async function extractAudioFromVideo(file){
+    const { Input, ALL_FORMATS, BlobSource, AudioBufferSink } = await loadMediabunny();
+    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const audioTrack = await input.getPrimaryAudioTrack();
+    if (!audioTrack) throw new Error('ไม่พบแทร็กเสียงในไฟล์วิดีโอนี้');
+    const canDecode = await audioTrack.canDecode();
+    if (!canDecode) throw new Error('เบราว์เซอร์นี้ถอดรหัสแทร็กเสียงของไฟล์วิดีโอนี้ไม่ได้');
+
+    const sampleRate = await audioTrack.getSampleRate();
+    const numberOfChannels = await audioTrack.getNumberOfChannels();
+    const totalDuration = await input.computeDuration();
+    const totalSamples = Math.max(1, Math.ceil(totalDuration * sampleRate));
+
+    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let merged;
+    try {
+      merged = tmpCtx.createBuffer(numberOfChannels, totalSamples, sampleRate);
+    } finally {
+      tmpCtx.close();
+    }
+
+    const sink = new AudioBufferSink(audioTrack);
+    for await (const wrapped of sink.buffers()){
+      // some encoders write a few audio chunks with a negative presentation
+      // timestamp (priming/encoder-delay samples meant to be discarded before
+      // t=0) — only some source videos have this, which is why extraction
+      // worked for some clips and threw "offset is out of bounds" for others.
+      // Clip off the portion of the chunk that lands before time zero instead
+      // of writing at a negative index.
+      let offset = Math.round(wrapped.timestamp * sampleRate);
+      let srcStart = 0;
+      if (offset < 0){
+        srcStart = -offset;
+        offset = 0;
+      }
+      if (offset >= totalSamples) continue;
+      for (let c = 0; c < numberOfChannels; c++){
+        const full = wrapped.buffer.numberOfChannels > c ? wrapped.buffer.getChannelData(c) : wrapped.buffer.getChannelData(0);
+        if (srcStart >= full.length) continue;
+        const src = srcStart > 0 ? full.subarray(srcStart) : full;
+        const dest = merged.getChannelData(c);
+        const room = totalSamples - offset;
+        dest.set(room >= src.length ? src : src.subarray(0, room), offset);
+      }
+    }
+    return merged;
   }
 
   function computePeaks(buffer, numBuckets){
@@ -1047,56 +1232,8 @@
     const vTime = origToVirtual(audioEl.currentTime);
     wfPlayhead.style.left = timeToX(vTime) + 'px';
     wfTime.textContent = `${fmtTime(vTime)} / ${fmtTime(vDur)}`;
-    updateSeekSliderFromTime();
   }
 
-  // ---------- one-finger seek slider (same widget style as the font-size
-  // slider) — drag the thumb to scrub anywhere, works the same whether
-  // zoomed in or not, no second finger required ----------
-  let seekThumbDragging = false;
-  function updateSeekSliderFromTime(){
-    if (seekThumbDragging || !audioBuffer) return;
-    const vDur = Math.max(0.001, virtualDuration());
-    const pct = Math.max(0, Math.min(100, (origToVirtual(audioEl.currentTime) / vDur) * 100));
-    wfSeekThumb.style.left = pct + '%';
-    wfSeekFill.style.width = pct + '%';
-  }
-  (function setupSeekSlider(){
-    let dragging = false;
-    function setFromClientX(clientX){
-      const rect = wfSeekTrackWrap.getBoundingClientRect();
-      const ratio = rect.width > 0 ? Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) : 0;
-      const vDur = Math.max(0.001, virtualDuration());
-      audioEl.currentTime = virtualToOrig(ratio * vDur);
-      wfSeekThumb.style.left = (ratio * 100) + '%';
-      wfSeekFill.style.width = (ratio * 100) + '%';
-      renderPlayheadOnly();
-      autoScrollToPlayheadForced();
-    }
-    wfSeekThumb.addEventListener('pointerdown', (e) => {
-      if (!audioBuffer) return;
-      dragging = true;
-      seekThumbDragging = true;
-      loopSelection = false;
-      audioEl.pause();
-      wfSeekThumb.setPointerCapture(e.pointerId);
-      e.preventDefault();
-    });
-    wfSeekThumb.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      setFromClientX(e.clientX);
-    });
-    function endDrag(e){
-      if (!dragging) return;
-      dragging = false;
-      seekThumbDragging = false;
-      try { wfSeekThumb.releasePointerCapture(e.pointerId); } catch (_){}
-    }
-    wfSeekThumb.addEventListener('pointerup', endDrag);
-    wfSeekThumb.addEventListener('pointercancel', endDrag);
-  })();
-  wfSeekMinusBtn.addEventListener('click', () => seekBy(-0.2));
-  wfSeekPlusBtn.addEventListener('click', () => seekBy(0.2));
   // like autoScrollToPlayhead, but scrolls even at zoom<=1.02 is skipped
   // there anyway (nothing to scroll); kept as its own name so the seek
   // slider's intent (always try to keep the view following) is explicit
@@ -1151,7 +1288,6 @@
     audioEl.pause();
     audioEl.currentTime = clientXToOrigTime(e.clientX);
     renderPlayheadOnly();
-    updateSeekSliderFromTime();
   });
 
   waveformWrap.addEventListener('pointermove', (e) => {
@@ -1177,7 +1313,6 @@
     if (dragMode === 'scrub'){
       audioEl.currentTime = clientXToOrigTime(e.clientX);
       renderPlayheadOnly();
-      updateSeekSliderFromTime();
       edgeScrollPointerX = e.clientX;
       startEdgeScroll();
     }
@@ -1229,21 +1364,6 @@
     drawWaveform();
     renderPlayheadOnly();
   });
-
-  seekBack10Btn.addEventListener('click', () => seekBy(-10));
-  seekBack1Btn.addEventListener('click', () => seekBy(-1));
-  seekFwd1Btn.addEventListener('click', () => seekBy(1));
-  seekFwd10Btn.addEventListener('click', () => seekBy(10));
-  function seekBy(delta){
-    if (!audioBuffer) return;
-    loopSelection = false;
-    let t = clampToDuration(audioEl.currentTime + delta);
-    t = snapOutOfCutRegion(t, delta >= 0);
-    audioEl.currentTime = t;
-    renderPlayheadOnly();
-    autoScrollToPlayhead();
-    selectSegmentAt(t);
-  }
 
   // ---------- split: drop a divider at the playhead, splitting whichever piece it's in ----------
   const MIN_SEG = 0.12; // seconds — don't allow a split that leaves a sliver this thin
@@ -1528,13 +1648,17 @@
   // =========================================================
   // STEP A — Groq Whisper: real acoustic word timing
   // =========================================================
-  async function callGroqWhisper(apiKey, audioFile){
+  async function callGroqWhisper(apiKey, audioFile, promptHint){
     const form = new FormData();
     form.append('file', audioFile);
     form.append('model', GROQ_MODEL);
     form.append('response_format', 'verbose_json');
     form.append('timestamp_granularities[]', 'word');
     form.append('language', 'th');
+    // optional: user-supplied specialized terms/character names, passed as
+    // Whisper's own "prompt" hint so it's more likely to get unusual words
+    // right on the first pass instead of mishearing them.
+    if (promptHint && promptHint.trim()) form.append('prompt', promptHint.trim());
 
     const res = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
@@ -1558,6 +1682,171 @@
       end: Number(w.end) || 0
     }));
   }
+
+  // =========================================================
+  // STEP A.5 — Gemini-assisted script line splitting (OPTIONAL, INDEPENDENT)
+  // Runs its own Groq Whisper call (separate from the one inside the main
+  // "start" flow below) so this feature can never alter timing/alignment
+  // for the actual render — it only ever writes plain text into
+  // `editedScript`, which the user can still review/edit before pressing
+  // "สร้างคลิป" as always. Nothing in STEP B/C or the render pipeline is
+  // touched by this section.
+  //
+  // Why Whisper runs FIRST and Gemini never hears the raw audio: a
+  // general multimodal model asked to listen to audio and place text at
+  // the right moment is estimating acoustic position from scratch — that
+  // is precisely the failure mode where a word from one sentence gets
+  // placed mid-way through another. A dedicated ASR model (Whisper) is
+  // built for exactly that job and already produces real word-level
+  // timestamps elsewhere in this file. So instead of asking Gemini to
+  // guess word position from raw sound, we hand it Whisper's already-
+  // measured word sequence (with real pause gaps marked inline) and only
+  // ask it to do the part it's actually good at: deciding readable
+  // line-break points given real pacing information. Gemini never invents
+  // wording — rule 4 in the prompt forces it to reproduce the user's own
+  // clean script text, using the transcript purely as a pacing reference.
+  // =========================================================
+
+  // Turn Whisper's word list into a plain-text pacing reference: words in
+  // spoken order, with a [PAUSE] marker inserted wherever the gap to the
+  // next word exceeds PAUSE_MARK_THRESHOLD_SEC. This is intentionally
+  // plain text (not JSON) — Gemini just needs to see rhythm, not compute
+  // over structured indices we'd otherwise have to trust it not to miscount.
+  function buildTranscriptForGemini(whisperWords){
+    let out = '';
+    for (let i = 0; i < whisperWords.length; i++){
+      out += whisperWords[i].text;
+      if (i < whisperWords.length - 1){
+        const gap = whisperWords[i + 1].start - whisperWords[i].end;
+        out += gap > PAUSE_MARK_THRESHOLD_SEC ? ' [PAUSE] ' : ' ';
+      }
+    }
+    return out.trim();
+  }
+
+  function buildGeminiSplitPrompt(rawScript, transcriptText, fillMode){
+    const rules = [
+      'กติกา:',
+      `1. เป้าหมายความยาวบรรทัด: ${WORD_RANGE_MIN}-${WORD_RANGE_MAX} คำต่อบรรทัด — บรรทัดส่วนใหญ่ (อย่างน้อย 90%) ต้องอยู่ในช่วงนี้จริงๆ ห้ามเกินเพดานบนหรือต่ำกว่าเพดานล่างเป็นประจำ อนุญาตให้ยืดหยุ่นได้เฉพาะกรณีจำเป็นจริงๆ เท่านั้น เช่น ชื่อเฉพาะที่แยกคำไม่ได้ หรือวลีติดกันแน่นจนแยกแล้วความหมายเสีย — ไม่ใช่ทุกครั้งที่รู้สึกว่า "น่าจะรวมกันดูดีกว่า"`,
+      '2. ห้ามปล่อยคำเชื่อม (เช่น เพราะ, และ, แล้ว, แต่, โผล่) ลอยเดี่ยวๆ บนบรรทัดของตัวเอง',
+      '3. ใช้ตำแหน่ง [PAUSE] ในทรานสคริปต์เป็นเบาะแสหลักของจุดตัด แต่ยังต้องพิจารณาเป้าหมายความยาวในข้อ 1 ประกอบด้วย — ถ้าช่วงยาวไม่มี [PAUSE] เลย ให้ใช้เป้าหมายความยาวเป็นตัวช่วยตัดสินใจแทน'
+    ];
+
+    if (fillMode){
+      rules.push(
+        '4. เทียบลำดับคำใน "สคริปต์ต้นฉบับ" กับ "ทรานสคริปต์เสียงจริง" ไปทีละช่วง — ช่วงไหนที่สคริปต์ต้นฉบับมีข้อความรองรับอยู่แล้ว ให้คงคำจากสคริปต์ต้นฉบับเป๊ะ 100% ห้ามเปลี่ยนแม้สะกดจะต่างจากทรานสคริปต์',
+        '5. ช่วงไหนที่ทรานสคริปต์เสียงจริงมีคำพูดอยู่ แต่สคริปต์ต้นฉบับไม่มีข้อความรองรับเลย (ช่องว่าง/ไม่ครอบคลุม) ให้ดึงคำจากทรานสคริปต์เสียงจริงมาใช้แทนสำหรับช่วงนั้น และขึ้นต้นทุกบรรทัดที่เนื้อหามาจากทรานสคริปต์ (ไม่ใช่จากสคริปต์ต้นฉบับ) ด้วยข้อความ "[AI] " ที่จุดเริ่มบรรทัด (ห้ามใช้สัญลักษณ์อีโมจิ ใช้ตัวอักษรธรรมดา "[AI] " เท่านั้น) เพื่อให้แยกออกจากบรรทัดที่มาจากสคริปต์ต้นฉบับได้ง่าย',
+        '6. ถ้าสคริปต์ต้นฉบับว่างเปล่าทั้งหมด ให้ใช้ทรานสคริปต์เสียงจริงทั้งหมดเป็นฐานในการตัดบรรทัด และขึ้นต้นทุกบรรทัดด้วย "[AI] "',
+        '7. ประมวลผลครั้งเดียวจากต้นจนจบ ห้ามวนซ้ำ ห้ามพิมพ์ซ้ำ ห้ามหยุดก่อนถึงคำสุดท้ายของทรานสคริปต์เสียงจริง'
+      );
+    } else {
+      rules.push(
+        '4. ห้ามเพิ่ม/ตัด/เรียงคำใหม่ ต้องคงคำและลำดับจาก "สคริปต์ต้นฉบับ" เป๊ะ 100% — ทรานสคริปต์เสียงจริงมีไว้ดูจังหวะเท่านั้น ห้ามเอาคำจากทรานสคริปต์มาแทนคำในสคริปต์ต้นฉบับแม้จะสะกดต่างกัน',
+        '5. ถ้ามีบางช่วงของทรานสคริปต์เสียงจริงที่ไม่มีข้อความในสคริปต์ต้นฉบับรองรับเลย ให้ข้ามช่วงนั้นไปเงียบๆ ห้ามแต่งข้อความเติมเอง และห้ามพยายามยัดคำจากสคริปต์ต้นฉบับไปเติมช่วงที่ไม่ตรงกันจริงๆ',
+        '6. ประมวลผลครั้งเดียวจากต้นจนจบ ห้ามวนซ้ำ ห้ามพิมพ์ซ้ำ ห้ามหยุดก่อนสคริปต์ต้นฉบับหมด'
+      );
+    }
+
+    return [
+      'คุณคือ Thai Subtitle Pacing Engine',
+      '',
+      'หน้าที่: แบ่ง "สคริปต์ต้นฉบับ" ด้านล่างออกเป็นบรรทัดย่อยสำหรับซับไตเติ้ล โดยใช้ "ทรานสคริปต์เสียงจริงพร้อมจุดหยุด" เป็นตัวช่วยตัดสินใจว่าจะตัดจังหวะตรงไหน',
+      '',
+      ...rules,
+      '',
+      'รูปแบบผลลัพธ์: พิมพ์เฉพาะบรรทัดที่ตัดวรรคแล้ว ห้ามมีคำนำ ห้ามมีคำอธิบาย ห้ามมี code block',
+      '',
+      '--- สคริปต์ต้นฉบับ ---',
+      rawScript ? rawScript : '(ไม่มี — ไม่มีสคริปต์ต้นฉบับให้เลย ใช้ทรานสคริปต์เสียงจริงทั้งหมดแทนตามกติกาข้อที่เกี่ยวข้องด้านบน)',
+      '',
+      `--- ทรานสคริปต์เสียงจริงพร้อมจุดหยุด (ใช้ดูจังหวะเสมอ${fillMode ? ' และใช้เป็นแหล่งคำสำหรับช่วงที่สคริปต์ไม่ครอบคลุม' : ' ห้ามคัดลอกคำจากส่วนนี้เว้นแต่กติกาด้านบนอนุญาต'}) ---`,
+      transcriptText
+    ].join('\n');
+  }
+
+  async function callGeminiSplit(apiKey, rawScript, transcriptText, fillMode){
+    const prompt = buildGeminiSplitPrompt(rawScript, transcriptText, fillMode);
+    const res = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2 }
+      })
+    });
+
+    if (!res.ok){
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Gemini API error (${res.status}): ${errText.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    const text = Array.isArray(parts) ? parts.map(p => p.text || '').join('') : '';
+    const cleaned = text.replace(/^```[a-zA-Z]*\n?/, '').replace(/```\s*$/, '').trim();
+    if (!cleaned) throw new Error('Gemini ไม่ส่งข้อความบรรทัดที่แยกแล้วกลับมา ลองใหม่อีกครั้ง');
+    return cleaned;
+  }
+
+  function showAutoSplitStatus(msg){ autoSplitStatusRow.classList.add('show'); autoSplitStatusText.textContent = msg; }
+  function hideAutoSplitStatus(){ autoSplitStatusRow.classList.remove('show'); }
+  function showAutoSplitError(msg){ autoSplitErrorBox.textContent = msg; autoSplitErrorBox.classList.add('show'); }
+  function hideAutoSplitError(){ autoSplitErrorBox.classList.remove('show'); }
+  function hideAutoSplitStats(){ autoSplitStatsEl.style.display = 'none'; }
+  function showAutoSplitStats(splitLines){
+    const lines = splitLines.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0){ hideAutoSplitStats(); return; }
+    // Thai is normally written with no spaces between words, so a space-split
+    // "word count" on the AI's own output would be meaningless here — character
+    // count (stripped of whitespace) is the only length measure that's actually
+    // comparable to the ${WORD_RANGE_MIN}-${WORD_RANGE_MAX} guideline in a
+    // consistent way, so that's what's reported back to the user.
+    const lens = lines.map(l => stripWs(l).length);
+    const avg = lens.reduce((a, b) => a + b, 0) / lens.length;
+    const max = Math.max(...lens);
+    const flagged = lines.filter(l => l.startsWith('[AI]')).length;
+    let msg = `ได้ ${lines.length} บรรทัด · เฉลี่ย ${avg.toFixed(1)} ตัวอักษร/บรรทัด (ยาวสุด ${max})`;
+    if (flagged > 0) msg += ` · ${flagged} บรรทัดมาจากเสียงล้วนๆ (ไม่มีในสคริปต์ต้นฉบับ) ควรตรวจก่อนใช้จริง`;
+    autoSplitStatsEl.textContent = msg;
+    autoSplitStatsEl.style.display = 'block';
+  }
+
+  autoSplitBtn.addEventListener('click', async () => {
+    hideAutoSplitError();
+    hideAutoSplitStats();
+    const geminiKey = apiKeyGeminiInput.value.trim();
+    const groqKey = apiKeyGroqInput.value.trim();
+    const raw = rawScriptInput.value.trim();
+
+    if (!groqKey){ showAutoSplitError('กรอก Groq API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
+    if (!geminiKey){ showAutoSplitError('กรอก Gemini API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
+    if (!selectedFile){ showAutoSplitError('เลือกไฟล์เสียงหรือวิดีโอก่อน (ข้อ 1)'); return; }
+    if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบที่ยังไม่ตัดบรรทัดก่อน (หรือสลับไปโหมด "เติมจากเสียงที่ได้ยินด้วย" ถ้าไม่มีสคริปต์)'); return; }
+
+    autoSplitBtn.disabled = true;
+    try {
+      if (!audioEl.paused) audioEl.pause();
+      if (cutRegions.length > 0) showAutoSplitStatus('กำลังตัดส่วนที่เลือกออกจากไฟล์เสียง...');
+      const processedFile = getFileForProcessing();
+
+      showAutoSplitStatus('กำลังจับเวลาเสียงจริง (Whisper)...');
+      const whisperWords = await callGroqWhisper(groqKey, processedFile, whisperHintTermsInput.value);
+
+      showAutoSplitStatus('กำลังให้ Gemini แยกบรรทัดตามจังหวะเสียงจริง...');
+      const transcriptText = buildTranscriptForGemini(whisperWords);
+      const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE);
+
+      editedScript.value = splitLines;
+      showAutoSplitStats(splitLines);
+      hideAutoSplitStatus();
+    } catch (err){
+      console.error(err);
+      hideAutoSplitStatus();
+      showAutoSplitError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
+    } finally {
+      autoSplitBtn.disabled = false;
+    }
+  });
 
   // =========================================================
   // STEP B — Global alignment + two-pass finishing
@@ -2210,7 +2499,11 @@
     resultCard.classList.remove('show');
 
     const groqKey = apiKeyGroqInput.value.trim();
-    const lines = editedScript.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // strip the "[AI]" auto-fill marker (added by the auto-split feature above to
+    // flag lines it pulled from audio rather than the user's own script) —
+    // it's a review aid for the textarea only and must never end up as
+    // literal burned-in subtitle text.
+    const lines = editedScript.value.split('\n').map(l => l.trim().replace(/^\[AI\]\s*/, '')).filter(l => l.length > 0);
 
     if (!groqKey){ showError('กรอก Groq API Key ก่อน'); return; }
     if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน'); return; }
@@ -2233,7 +2526,7 @@
       await decodeCtx.close();
 
       showStatus('กำลังจับเวลาเสียงจริง (Whisper)...');
-      const whisperWords = await callGroqWhisper(groqKey, processedFile);
+      const whisperWords = await callGroqWhisper(groqKey, processedFile, whisperHintTermsInput.value);
       setStep(step1, 'done'); setStep(step2, 'active');
       showStatus('กำลังจับคู่บรรทัดกับเสียง...');
 
