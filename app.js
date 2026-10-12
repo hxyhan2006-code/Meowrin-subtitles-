@@ -1232,6 +1232,8 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     form.append('response_format', 'verbose_json');
     form.append('timestamp_granularities[]', 'word');
     form.append('language', 'th');
+    // temperature 0 = greedy decoding: ล็อกให้ Whisper ถอดเสียง/Timestamp เดิมทุกครั้งที่กดรัน (ไม่สุ่ม)
+    form.append('temperature', '0');
     // optional: user-supplied specialized terms/character names, passed as
     // Whisper's own "prompt" hint so it's more likely to get unusual words
     // right on the first pass instead of mishearing them.
