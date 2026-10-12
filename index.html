@@ -25,6 +25,7 @@
 <body>
 <div class="app">
 
+  <div class="top-container">
   <header class="topbar">
     <h1>Green Screen Subtitle</h1>
     <button type="button" class="settings-btn" id="settingsBtn">⚙️ API Keys</button>
@@ -35,6 +36,7 @@
     <button type="button" class="tab" role="tab" aria-selected="false" data-tab="1"><i>2</i><span>สคริปต์</span></button>
     <button type="button" class="tab" role="tab" aria-selected="false" data-tab="2"><i>3</i><span>สตูดิโอ &amp; ส่งออก</span></button>
   </nav>
+  </div>
 
   <main class="main" id="mainScroll">
 
@@ -180,8 +182,9 @@
         <p class="foot-note">นำ .mp4 เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปได้เลย</p>
       </div>
 
-      <div class="card">
-        <h2>สไตล์ตัวอักษร</h2>
+      <details class="accordion-card" id="styleAccordion">
+        <summary>⚙️ ปรับสไตล์ตัวอักษร &amp; ขอบ (เปิด/ปิด)</summary>
+        <div class="accordion-body">
         <label class="field-label">ขนาดตัวอักษร — <span id="fontSizeVal">74</span>px</label>
         <div class="fine-slider-row">
           <button type="button" class="fs-btn" id="fontSizeMinus" aria-label="ลดขนาดตัวอักษร">−</button>
@@ -210,7 +213,8 @@
           <button type="button" class="fs-btn" id="syncOffsetPlus" aria-label="ให้ซับขึ้นช้าลง">+</button>
         </div>
         <p class="wf-hint">ใช้แก้เฉพาะกรณีซับทั้งคลิปเพี้ยนไปทางเดียวกันหมด ถ้าตรงบ้างไม่ตรงบ้างให้ปล่อยไว้ที่ 0 — ระบบจับจุดตัดจากคลื่นเสียงจริงให้อัตโนมัติตอนสร้างคลิป</p>
-      </div>
+              </div>
+      </details>
 
       <button type="button" class="primary" id="startBtn">🎬 ยืนยันวรรค &amp; สร้างคลิปจอเขียว</button>
       <div class="error-box" id="errorBox"></div>

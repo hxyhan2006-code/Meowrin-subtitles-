@@ -422,6 +422,15 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   drawStylePreview();
   document.fonts.ready.then(drawStylePreview).catch(() => {});
 
+  // the style controls live in a collapsed accordion — redraw the preview canvas whenever it opens
+  // so it never shows up stale or blank
+  document.getElementById('styleAccordion').addEventListener('toggle', (e) => {
+    if (e.currentTarget.open){
+      drawStylePreview();
+      requestAnimationFrame(drawStylePreview);
+    }
+  });
+
   // ---------- paste / clear — one pair of buttons per box ----------
   function updateLineCount(){
     const n = editedScript.value.split('\n').filter(l => l.trim()).length;
