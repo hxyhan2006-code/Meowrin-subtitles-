@@ -88,51 +88,64 @@
       </div>
     </section>
 
-    <!-- ============ แท็บที่ 2 : สคริปต์ ============ -->
+    <!-- ============ แท็บที่ 2 : สคริปต์ (Linear Workflow) ============ -->
     <section class="panel" id="panel1" role="tabpanel">
-      <div class="script-actions">
-        <button type="button" class="action-btn" id="pasteBtn">📋 วางจากคลิปบอร์ด</button>
-        <button type="button" class="action-btn danger" id="clearScriptBtn">🗑️ ล้างทั้งหมด</button>
-      </div>
-      <div class="error-box" id="scriptErrorBox"></div>
 
-      <label class="field-label" for="editedScript">1 บรรทัด = 1 ซับ — กด Enter เพื่อขึ้นบรรทัดใหม่</label>
-      <textarea id="editedScript" class="script-area" placeholder="พิมพ์หรือวางสคริปต์ทีละบรรทัด..."></textarea>
-      <button type="button" class="ghost-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
-
-      <details class="ai-tools-drawer">
-        <summary>🪄 เครื่องมือแยกบรรทัดด้วย AI</summary>
-        <div class="ai-tools-body">
-          <label class="field-label" for="rawScript">สคริปต์ดิบที่ยังไม่ตัดบรรทัด (เว้นว่างได้ถ้าใช้โหมด "เติมจากเสียง")</label>
-          <textarea id="rawScript" class="raw-area" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่..."></textarea>
-
-          <label class="field-label gap">โหมดการอ้างอิงสคริปต์</label>
-          <div class="chip-row" id="scriptModeChips">
-            <button type="button" class="chip-btn" data-mode="strict">🔒 ยึดสคริปต์ 100%</button>
-            <button type="button" class="chip-btn" data-mode="fill">✨ เติมจากเสียงด้วย</button>
-          </div>
-          <p class="wf-hint" id="scriptModeHint"></p>
-
-          <label class="field-label gap">🎯 เป้าหมายจำนวนคำต่อบรรทัด</label>
-          <div class="chip-row" id="wordRangeChips">
-            <button type="button" class="chip-btn" data-min="1" data-max="3">1-3</button>
-            <button type="button" class="chip-btn" data-min="2" data-max="3">2-3</button>
-            <button type="button" class="chip-btn" data-min="2" data-max="4">2-4</button>
-            <button type="button" class="chip-btn" data-min="3" data-max="5">3-5</button>
-          </div>
-          <input type="text" id="wordRangeCustom" placeholder="หรือกำหนดเอง เช่น 4-6">
-
-          <label class="field-label gap" for="whisperHintTerms">🗣️ คำศัพท์เฉพาะ/ชื่อตัวละคร (ไม่บังคับ)</label>
-          <input type="text" id="whisperHintTerms" placeholder="คั่นด้วยจุลภาค เช่น ชื่อตัวละคร, ศัพท์เฉพาะ">
-          <p class="wf-hint">ช่วยให้ Whisper ถอดเสียงคำเหล่านี้แม่นขึ้น ใช้ทั้งตอน "แยกบรรทัดด้วย AI" และตอน "สร้างคลิป"</p>
-
-          <button type="button" class="action-btn wide" id="autoSplitBtn">🪄 แยกบรรทัดด้วย AI (ใช้ไฟล์เสียงจากแท็บ 1)</button>
-          <p class="wf-hint">Whisper จับเวลาเสียงจริงก่อน แล้ว Gemini ช่วยตัดบรรทัดตามจังหวะ ผลลัพธ์จะเติมในช่องสคริปต์ด้านบน ตรวจ/แก้ได้ก่อนสร้างคลิปเสมอ (แยกรอบกับขั้น "สร้างคลิป" ไม่กระทบกัน)</p>
-          <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
-          <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
-          <div class="error-box" id="autoSplitErrorBox"></div>
+      <!-- กล่องบน: สคริปต์ดิบ -->
+      <div class="script-box">
+        <h2 class="box-title">1. สคริปต์ดิบ (บททั้งหมดที่ยังไม่ตัดบรรทัด)</h2>
+        <div class="script-actions">
+          <button type="button" class="action-btn" id="pasteRawBtn">📋 วาง</button>
+          <button type="button" class="action-btn danger" id="clearRawBtn">🗑️ ล้าง</button>
         </div>
-      </details>
+        <div class="error-box" id="rawErrorBox"></div>
+        <textarea id="rawScript" class="script-area" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่..."></textarea>
+      </div>
+
+      <!-- ส่วนสั่งการ AI คั่นกลาง -->
+      <div class="ai-cta">
+        <button type="button" class="cta-btn" id="autoSplitBtn">✨ แยกบรรทัดด้วย AI ทันที</button>
+        <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
+        <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
+        <div class="error-box" id="autoSplitErrorBox"></div>
+
+        <details class="ai-tools-drawer">
+          <summary>⚙️ ตั้งค่า AI เพิ่มเติม &amp; คำศัพท์เฉพาะ</summary>
+          <div class="ai-tools-body">
+            <label class="field-label">🎯 เป้าหมายจำนวนคำต่อบรรทัด</label>
+            <div class="chip-row" id="wordRangeChips">
+              <button type="button" class="chip-btn" data-min="1" data-max="3">1-3</button>
+              <button type="button" class="chip-btn" data-min="2" data-max="3">2-3</button>
+              <button type="button" class="chip-btn" data-min="2" data-max="4">2-4</button>
+              <button type="button" class="chip-btn" data-min="3" data-max="5">3-5</button>
+            </div>
+            <input type="text" id="wordRangeCustom" placeholder="หรือกำหนดเอง เช่น 4-6">
+
+            <label class="field-label gap">โหมดการอ้างอิงสคริปต์</label>
+            <div class="chip-row" id="scriptModeChips">
+              <button type="button" class="chip-btn" data-mode="strict">🔒 ยึดสคริปต์ 100%</button>
+              <button type="button" class="chip-btn" data-mode="fill">✨ เติมจากเสียงด้วย</button>
+            </div>
+            <p class="wf-hint" id="scriptModeHint"></p>
+
+            <label class="field-label gap" for="whisperHintTerms">🗣️ คำศัพท์เฉพาะ/ชื่อตัวละคร (ไม่บังคับ)</label>
+            <input type="text" id="whisperHintTerms" placeholder="คั่นด้วยจุลภาค เช่น ชื่อตัวละคร, ศัพท์เฉพาะ">
+            <p class="wf-hint">ช่วยให้ Whisper ถอดเสียงคำเหล่านี้แม่นขึ้น ใช้ทั้งตอน "แยกบรรทัดด้วย AI" และตอน "สร้างคลิป"</p>
+          </div>
+        </details>
+        <p class="wf-hint">Whisper จับเวลาเสียงจริงก่อน แล้ว Gemini ช่วยตัดบรรทัดตามจังหวะ (ใช้ไฟล์เสียงจากแท็บ 1) ผลลัพธ์จะไปอยู่ในกล่องที่ 2 ด้านล่าง ตรวจ/แก้ได้ก่อนสร้างคลิปเสมอ</p>
+      </div>
+
+      <!-- กล่องล่าง: สคริปต์พร้อมใช้งาน -->
+      <div class="script-box">
+        <h2 class="box-title">2. สคริปต์ที่ตัดบรรทัดแล้ว (1 บรรทัด = 1 ซับ) <span class="line-count" id="scriptLineCount"></span></h2>
+        <div class="script-actions">
+          <button type="button" class="action-btn" id="pasteBtn">📋 วาง</button>
+          <button type="button" class="action-btn danger" id="clearScriptBtn">🗑️ ล้าง</button>
+        </div>
+        <div class="error-box" id="scriptErrorBox"></div>
+        <textarea id="editedScript" class="script-area" placeholder="ผลลัพธ์จาก AI จะมาอยู่ตรงนี้ หรือวางสคริปต์ที่ตัดบรรทัดมาเองแล้วทีละบรรทัด..."></textarea>
+      </div>
     </section>
 
     <!-- ============ แท็บที่ 3 : สตูดิโอ & ส่งออก ============ -->
@@ -229,15 +242,6 @@
     </div>
     <button type="button" class="primary" id="settingsSaveBtn">บันทึกและปิด</button>
   </div>
-</div>
-
-<!-- ---------- fullscreen script editor ---------- -->
-<div class="fullscreen-editor" id="fullscreenEditor">
-  <div class="fe-head">
-    <h2>แก้ไขสคริปต์ (เต็มจอ)</h2>
-  </div>
-  <textarea id="fullscreenTextarea" placeholder="พิมพ์/แก้ไขบรรทัดซับที่นี่..."></textarea>
-  <button type="button" class="fe-done" id="fullscreenDoneBtn">✓ บันทึกและเสร็จสิ้น</button>
 </div>
 
 <script type="module" src="app.js"></script>

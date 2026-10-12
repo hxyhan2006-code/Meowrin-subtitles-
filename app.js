@@ -66,17 +66,17 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   const settingsBtn = document.getElementById('settingsBtn');
   const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
   const settingsSaveBtn = document.getElementById('settingsSaveBtn');
-  const expandEditBtn = document.getElementById('expandEditBtn');
   const pasteBtn = document.getElementById('pasteBtn');
-  const fullscreenEditor = document.getElementById('fullscreenEditor');
-  const fullscreenTextarea = document.getElementById('fullscreenTextarea');
-  const fullscreenDoneBtn = document.getElementById('fullscreenDoneBtn');
   const progressWrap = document.getElementById('progressWrap');
   const progressFill = document.getElementById('progressFill');
   const progressPct = document.getElementById('progressPct');
   const trimCard = document.getElementById('trimCard');
   const clearScriptBtn = document.getElementById('clearScriptBtn');
   const scriptErrorBox = document.getElementById('scriptErrorBox');
+  const pasteRawBtn = document.getElementById('pasteRawBtn');
+  const clearRawBtn = document.getElementById('clearRawBtn');
+  const rawErrorBox = document.getElementById('rawErrorBox');
+  const scriptLineCount = document.getElementById('scriptLineCount');
 
   // unified 1:1 stage (tab 3): style preview canvas <-> result video
   const stage = document.getElementById('stage');
@@ -422,47 +422,40 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   drawStylePreview();
   document.fonts.ready.then(drawStylePreview).catch(() => {});
 
-  // ---------- fullscreen script editor ----------
-  function openFullscreenEditor(){
-    fullscreenTextarea.value = editedScript.value;
-    fullscreenEditor.classList.add('show');
-    fullscreenTextarea.focus();
+  // ---------- paste / clear — one pair of buttons per box ----------
+  function updateLineCount(){
+    const n = editedScript.value.split('\n').filter(l => l.trim()).length;
+    scriptLineCount.textContent = n ? `· ${n} บรรทัด` : '';
   }
-  function closeFullscreenEditor(){
-    editedScript.value = fullscreenTextarea.value;
-    fullscreenEditor.classList.remove('show');
+  editedScript.addEventListener('input', updateLineCount);
+
+  function bindPasteClear(pasteEl, clearEl, textarea, errBox){
+    pasteEl.addEventListener('click', async () => {
+      hideError(errBox);
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text){ showError('คลิปบอร์ดว่างเปล่า — คัดลอกข้อความมาก่อนแล้วค่อยกดวาง', errBox); return; }
+        textarea.value = text;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (err){
+        showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง', errBox);
+      }
+    });
+    clearEl.addEventListener('click', () => {
+      textarea.value = '';
+      hideError(errBox);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
   }
-  expandEditBtn.addEventListener('click', openFullscreenEditor);
-  fullscreenDoneBtn.addEventListener('click', closeFullscreenEditor);
-
-  // ---------- one-tap paste (pulls latest copied text straight in) ----------
-  pasteBtn.addEventListener('click', async () => {
-    hideError(scriptErrorBox);
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text){ showError('คลิปบอร์ดว่างเปล่า — คัดลอกสคริปต์มาก่อนแล้วค่อยกดวาง', scriptErrorBox); return; }
-      editedScript.value = text;
-      editedScript.dispatchEvent(new Event('input', { bubbles: true }));
-    } catch (err){
-      showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง', scriptErrorBox);
-    }
-  });
-
-  // ---------- clear the whole script box in one tap ----------
-  clearScriptBtn.addEventListener('click', () => {
-    editedScript.value = '';
-    fullscreenTextarea.value = '';
-    hideError(scriptErrorBox);
-    hideAutoSplitStats();
-    editedScript.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  bindPasteClear(pasteRawBtn, clearRawBtn, rawScriptInput, rawErrorBox);
+  bindPasteClear(pasteBtn, clearScriptBtn, editedScript, scriptErrorBox);
+  clearScriptBtn.addEventListener('click', hideAutoSplitStats); // stats describe the box that was just emptied
 
   // ---------- 3-step tab wizard (top tabs + sticky footer back/next) ----------
   const tabBtns = Array.from(document.querySelectorAll('.tab'));
   const tabPanels = Array.from(document.querySelectorAll('.panel'));
   const backBtn = document.getElementById('backBtn');
   const nextBtn = document.getElementById('nextBtn');
-  const mainScroll = document.getElementById('mainScroll');
   let currentTab = 0;
   function goTab(i){
     i = Math.max(0, Math.min(tabPanels.length - 1, i));
@@ -475,7 +468,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     tabPanels.forEach((p, k) => p.classList.toggle('active', k === i));
     backBtn.disabled = i === 0;
     nextBtn.hidden = i === tabPanels.length - 1;
-    mainScroll.scrollTop = 0;
+    window.scrollTo(0, 0);
     // the waveform can't be measured while its tab is display:none — redo layout when it's visible again
     if (i === 0 && audioBuffer){
       requestAnimationFrame(() => {
@@ -488,12 +481,6 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   backBtn.addEventListener('click', () => goTab(currentTab - 1));
   nextBtn.addEventListener('click', () => goTab(currentTab + 1));
   goTab(0);
-  // keep the main textarea synced live too, in case the fullscreen mode
-  // is dismissed some other way (e.g. mobile back gesture)
-  fullscreenTextarea.addEventListener('input', () => {
-    editedScript.value = fullscreenTextarea.value;
-  });
-
   // ---------- file selection ----------
   fileDrop.addEventListener('click', () => audioFileInput.click());
   audioFileInput.addEventListener('change', async (e) => {
@@ -1455,7 +1442,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     if (!groqKey){ showAutoSplitError('กรอก Groq API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
     if (!geminiKey){ showAutoSplitError('กรอก Gemini API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
     if (!selectedFile){ showAutoSplitError('เลือกไฟล์เสียงหรือวิดีโอก่อน (แท็บ "เสียง & ตัดต่อ")'); return; }
-    if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบที่ยังไม่ตัดบรรทัดก่อน (หรือสลับไปโหมด "เติมจากเสียงที่ได้ยินด้วย" ถ้าไม่มีสคริปต์)'); return; }
+    if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบในกล่อง 1 ก่อน (หรือเปิด "ตั้งค่า AI เพิ่มเติม" แล้วสลับเป็นโหมด "เติมจากเสียงด้วย" ถ้าไม่มีสคริปต์)'); return; }
 
     autoSplitBtn.disabled = true;
     try {
@@ -1471,8 +1458,10 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE);
 
       editedScript.value = splitLines;
+      updateLineCount();
       showAutoSplitStats(splitLines);
       hideAutoSplitStatus();
+      editedScript.scrollIntoView({ behavior: 'smooth', block: 'center' }); // bring the result into view
     } catch (err){
       console.error(err);
       hideAutoSplitStatus();
