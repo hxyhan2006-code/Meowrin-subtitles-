@@ -3,248 +3,104 @@
 
 // ---------- constants ----------
   // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
-  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start (widened to stop fast/short words from falling outside the window)
+  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start (grows after consecutive misses, see MAX_LOOKAHEAD_GROWTH)
+  const MAX_LOOKAHEAD_GROWTH = 4; // lookahead window may grow up to this multiple of WORD_LOOKAHEAD after unmatched lines
   const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
-  const MIN_MATCH_SCORE = 0.25;   // similarity floor below which a line is treated as unmatched
+  const MIN_MATCH_SCORE = 0.35;   // similarity floor below which a line is treated as unmatched (matched:false, start/end:null)
   const EARLY_BREAK_SCORE = 0.65; // score at which the inner span-search stops early once long enough
+  const DISTANCE_PENALTY = 0.03;  // per-word penalty for starting the match ahead of the pointer
 
   // --- display timing guards ---
   // Minimum time (seconds) a subtitle line stays on screen so a human can
-  // actually read it. Used by PASS 3 (finishSegments) to stretch too-short
-  // lines, and by the energy refinement pass so an audio-energy snap can
-  // never shrink a line below this floor.
+  // actually read it. Used by PASS 2 (interpolated slots), PASS 3
+  // (finishSegments) and by the energy refinement pass so an audio-energy
+  // snap can never shrink a line below this floor.
   const MIN_DISPLAY_DURATION = 0.35;
   // Whisper's timestamps for matched lines run ~25ms early for Thai, so
   // PASS 3 nudges matched starts later by this much.
   const MATCHED_START_BIAS = 0.025;
+  // A line that ends this close (seconds) before the next line starts is
+  // stretched to meet it: continuous speech should not flash a blank frame.
+  const CONTIGUOUS_GAP = 0.06;
   // Max fraction of a line's original (Whisper) duration an energy snap is
   // allowed to remove before the snap is rejected and Whisper's time kept.
   const MAX_SNAP_SHRINK_RATIO = 0.30;
 
 // ---------- helpers ----------
   function stripWs(s){
-    return s.replace(/\s+/g, '');
+    return String(s == null ? '' : s).replace(/\s+/g, '');
+  }
+
+  function round2(x){
+    return Math.round(x * 100) / 100;
   }
 
   // =========================================================
-  // STEP B — Global alignment + two-pass finishing
-  // PASS 0 (global alignment, primary path): the old per-line greedy
-  // matcher picked a "best so far" window for line 1, then started
-  // line 2's search from wherever line 1 stopped — one bad local pick
-  // (very common with repeated words/names in Thai, or a filler word
-  // Whisper heard that isn't in the script) permanently shifts every
-  // line after it forward or backward. That's the "1 good clip out of
-  // 10" symptom: cascading, not random. Instead we run a single global
-  // sequence alignment (Needleman-Wunsch edit-distance DP) between the
-  // FULL edited script (all lines concatenated) and the FULL Whisper
-  // transcript (all words concatenated) once. This finds the
-  // minimum-total-edit-distance alignment across the whole clip at
-  // once, so a mismatch in one spot doesn't drag every later line off
-  // with it — deterministic and reproducible for the same inputs/edits.
-  // Each line boundary in the script is then read off the alignment
-  // path and converted to a timestamp by locating the matching
-  // position inside the aligned Whisper word and interpolating across
-  // that word's [start,end] by character offset.
-  // PASS 1 (windowed fallback): kept for pathologically long audio
-  // (alignLinesToWordsWindowed) where the O(N×M) DP grid would be too
-  // large to build responsively on a phone; same greedy logic as
-  // before.
-  // PASS 2 (linear interpolation): any line that still comes back
-  // unmatched (e.g. truly empty line) gets a start/end carved out of
-  // the silent gap between the anchors before and after it. With PASS 0
-  // this should be rare — nearly everything gets *some* real anchor —
-  // but the safety net stays so nothing silently disappears.
-  // PASS 3 (acoustic lock + minimum display duration): a line's start is
-  // the real Whisper-detected onset of its speech. Its end is the real
-  // detected offset, EXCEPT that a line shorter than MIN_DISPLAY_DURATION
-  // (0.35s) is stretched forward so it stays readable instead of flashing
-  // for a frame — but never past the next line's start. If the next line
-  // follows immediately (no real silence), this line's end lands exactly on
-  // the next line's start: contiguous, no blank frame, no overlap.
+  // STEP B — Monotonic forward matching + two-pass finishing
+  // PASS 1 (Monotonic Forward Window Matching, the only matcher):
+  // lines are matched to Whisper words strictly front-to-back in timeline
+  // order. A pointer `wp` marks the first Whisper word not yet consumed;
+  // each line searches only a bounded window ahead of it and, once matched,
+  // moves the pointer past the words it used. The pointer never moves
+  // backward, so a phrase spoken twice (a Hook, a repeated chorus line) is
+  // matched once per occurrence, in order: the first occurrence consumes the
+  // first set of words, the second occurrence can only see words after it.
+  // A line scoring below MIN_MATCH_SCORE is reported honestly as
+  // { matched:false, start:null, end:null } and left for PASS 2.
+  // (The old global character-level Needleman-Wunsch alignment is gone: on
+  // Thai and repeated passages it collapsed many lines onto a single point
+  // — start == end — and marked everything matched:true, so nothing ever
+  // reached the recovery pass and subtitles vanished.)
+  // PASS 2 (block-based continuous interpolation): every run of consecutive
+  // unmatched lines is spread across the gap between the anchor before it
+  // and the anchor after it, proportionally to character length, with every
+  // line guaranteed at least MIN_DISPLAY_DURATION.
+  // PASS 3 (display timing): no line is ever shorter than
+  // MIN_DISPLAY_DURATION or has zero length, and no line is ever dropped.
+  // Where lines collide (same/overlapping starts, or starts closer than the
+  // minimum), the colliding group shares its time span evenly (weighted by
+  // character count) as a seamless hand-off instead of one line being
+  // squeezed to 0 seconds.
   // =========================================================
-
-  // Guard: above this many (targetChars × asrChars) DP cells, fall back
-  // to the windowed matcher rather than risk locking up a phone browser.
-  const GLOBAL_ALIGN_CELL_BUDGET = 12000000;
 
   export function alignLinesToWords(lines, whisperWords) {
-    const rawSegments = globalAlignLines(lines, whisperWords);
-    if (rawSegments) return finishSegments(rawSegments, whisperWords);
-    // fallback path for very long audio
-    return finishSegments(alignLinesToWordsWindowed(lines, whisperWords), whisperWords);
+    const words = Array.isArray(whisperWords) ? whisperWords : [];
+    const safeLines = Array.isArray(lines) ? lines : [];
+    return finishSegments(alignLinesToWordsWindowed(safeLines, words), words);
   }
 
-  // ---- PASS 0: global Needleman-Wunsch alignment over the whole clip ----
-  function globalAlignLines(lines, whisperWords) {
-    const strippedLines = lines.map(stripWs);
-    const targetText = strippedLines.join('');
-    const N = targetText.length;
-
-    // asrText: every Whisper word's stripped text concatenated, plus a
-    // parallel array so any character position can be mapped back to
-    // (which word, offset within that word) for time interpolation.
-    let asrText = '';
-    const asrCharMeta = [];
-    whisperWords.forEach((w, wi) => {
-      const t = stripWs(w.text);
-      for (let k = 0; k < t.length; k++) {
-        asrText += t[k];
-        asrCharMeta.push({ wordIdx: wi, offsetInWord: k, wordLen: t.length });
-      }
-    });
-    const M = asrText.length;
-
-    if (N === 0 || M === 0) return null;
-    if (N * M > GLOBAL_ALIGN_CELL_BUDGET) return null; // let caller fall back
-
-    // Needleman-Wunsch DP: match=0, mismatch=1, gap=1
-    const W = M + 1;
-    const dp = new Int32Array((N + 1) * W);
-    for (let j = 0; j <= M; j++) dp[j] = j;
-    for (let i = 0; i <= N; i++) dp[i * W] = i;
-
-    for (let i = 1; i <= N; i++) {
-      const rowBase = i * W;
-      const prevRowBase = (i - 1) * W;
-      const tc = targetText[i - 1];
-      for (let j = 1; j <= M; j++) {
-        const cost = tc === asrText[j - 1] ? 0 : 1;
-        const sub = dp[prevRowBase + j - 1] + cost;
-        const del = dp[prevRowBase + j] + 1;
-        const ins = dp[rowBase + j - 1] + 1;
-        let best = sub;
-        if (del < best) best = del;
-        if (ins < best) best = ins;
-        dp[rowBase + j] = best;
-      }
-    }
-
-    // Traceback: for every target position i (0..N), record the aligned
-    // asr position j — walking end-to-start and filling as we go.
-    const targetPosToAsrPos = new Int32Array(N + 1);
-    let i = N, j = M;
-    targetPosToAsrPos[N] = M;
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && dp[i * W + j] === dp[(i - 1) * W + (j - 1)] + (targetText[i - 1] === asrText[j - 1] ? 0 : 1)) {
-        i--; j--;
-        targetPosToAsrPos[i] = j;
-        continue;
-      }
-      if (i > 0 && dp[i * W + j] === dp[(i - 1) * W + j] + 1) {
-        i--;
-        targetPosToAsrPos[i] = j;
-        continue;
-      }
-      if (j > 0 && dp[i * W + j] === dp[i * W + (j - 1)] + 1) {
-        j--;
-        continue;
-      }
-      // shouldn't happen, but never loop forever
-      if (i > 0) { i--; targetPosToAsrPos[i] = j; } else { j--; }
-    }
-
-    // Two boundary-time readings are needed, not one — a "start" boundary
-    // (beginning of the char at `pos`) and an "end" boundary (end of the
-    // char just before `pos`) are usually the same instant, but NOT when
-    // Whisper recorded a real acoustic gap between that word and the next
-    // one. Using a single function for both collapsed a line's end into
-    // the START of whatever comes after the gap instead of the true END
-    // of its own last word — silently erasing short real silences and
-    // dragging the previous line's on-screen time into the gap.
-    // Tier-2 fix: when a line boundary falls in the middle of a Whisper
-    // word (script splits where Whisper heard one continuous word), don't
-    // fabricate a timestamp by guessing a proportional point inside the
-    // word by character count — that point is not a real acoustic event.
-    // Instead SNAP the boundary to whichever real edge of that word (its
-    // detected start or its detected end) is closer. This trades "exactly
-    // where the script text splits" for "a timestamp Whisper actually
-    // measured", which is the worthwhile trade: the boundary now always
-    // lands on a real onset/offset instead of an estimated midpoint.
-    // Note: asrStartTime(pos) and asrEndTime(pos) are always called on the
-    // SAME pos for one line's end and the next line's start, and resolve
-    // to the same frac/word when the split is mid-word — so both sides of
-    // a boundary snap the same direction and stay contiguous (no new gap
-    // or overlap is introduced by snapping).
-    function snapToNearestWordEdge(w, frac) {
-      // Linear interpolation across the word's own duration instead of a
-      // hard round to whichever edge frac is closer to. The old version
-      // used `frac < 0.5 ? w.start : w.end`, which meant any line split
-      // that happened to land in the first half of a fused multi-syllable
-      // Thai word token (Whisper frequently emits one timestamp for an
-      // unspaced run like "และนี่ก็คือ") snapped ALL THE WAY back to the
-      // start of that whole token — dragging the subtitle's on-screen time
-      // far earlier than the actual audio for that portion of the word.
-      // Interpolating proportionally by character offset keeps the
-      // boundary continuous and roughly tracks where in the token the
-      // audio actually is, instead of teleporting to one extreme.
-      const duration = Math.max(0, w.end - w.start);
-      return w.start + (duration * Math.max(0, Math.min(1, frac)));
-    }
-    function asrStartTime(pos) {
-      if (pos <= 0) return whisperWords[0].start;
-      if (pos >= M) return whisperWords[whisperWords.length - 1].end;
-      const meta = asrCharMeta[pos];
-      const w = whisperWords[meta.wordIdx];
-      const frac = meta.wordLen > 0 ? meta.offsetInWord / meta.wordLen : 0;
-      return snapToNearestWordEdge(w, frac);
-    }
-    function asrEndTime(pos) {
-      if (pos <= 0) return whisperWords[0].start;
-      if (pos >= M) return whisperWords[whisperWords.length - 1].end;
-      const meta = asrCharMeta[pos - 1];
-      const w = whisperWords[meta.wordIdx];
-      const frac = meta.wordLen > 0 ? (meta.offsetInWord + 1) / meta.wordLen : 1;
-      return snapToNearestWordEdge(w, frac);
-    }
-
-    const rawSegments = [];
-    let cursor = 0;
-    for (let li = 0; li < lines.length; li++) {
-      const sl = strippedLines[li];
-      if (!sl) { rawSegments.push({ text: lines[li], start: null, end: null, matched: false, score: 0 }); continue; }
-      const startPos = targetPosToAsrPos[cursor];
-      const endPos = targetPosToAsrPos[cursor + sl.length];
-      cursor += sl.length;
-      const st = asrStartTime(startPos);
-      const en = Math.max(st + 0.02, asrEndTime(endPos));
-      // confidence score: how well the ASR text actually spanned by this
-      // line's aligned range resembles the line's own text — a real
-      // mismatch (Whisper misheard a word, script paraphrases the audio,
-      // a filler word got absorbed into the wrong line) shows up here as
-      // a low score even though the *global* alignment overall succeeded,
-      // which is exactly the "just this one line" case a uniform offset
-      // slider can never fix.
-      const asrSlice = asrText.slice(Math.max(0, startPos), Math.min(M, Math.max(startPos, endPos)));
-      const score = textSimilarity(sl, asrSlice);
-      rawSegments.push({ text: lines[li], start: st, end: en, matched: true, score });
-    }
-    return rawSegments;
-  }
-
-  // ---- PASS 1 fallback: old per-line greedy windowed matcher ----
+  // ---- PASS 1: monotonic forward window matcher ----
   function alignLinesToWordsWindowed(lines, whisperWords) {
     const words = whisperWords.map(w => stripWs(w.text));
     const N = words.length;
-    let wp = 0;
+    let wp = 0;          // first whisper word not yet consumed — only ever moves forward
+    let misses = 0;      // consecutive unmatched lines, widens the search window
     const rawSegments = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const target = stripWs(line);
-      if (!target) continue;
+
+      // empty line (or no whisper words left): nothing to match, leave for PASS 2
+      if (!target || wp >= N) {
+        rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
+        continue;
+      }
 
       let best = null;
-      // search forward using WORD_LOOKAHEAD, to force staying near the current audio position
-      const searchLimit = Math.min(N, wp + WORD_LOOKAHEAD);
+      const lookahead = WORD_LOOKAHEAD * Math.min(MAX_LOOKAHEAD_GROWTH, 1 + misses);
+      const searchLimit = Math.min(N, wp + lookahead);
 
       for (let start = wp; start < searchLimit; start++) {
         let acc = '';
         const spanLimit = Math.min(N, start + WORD_MAX_SPAN);
+        // Distance penalty: discourage matches far from the pointer, so a
+        // repeated phrase is taken at its nearest not-yet-used occurrence.
+        const distancePenalty = (start - wp) * DISTANCE_PENALTY;
         for (let end = start; end < spanLimit; end++) {
           acc += words[end];
+          if (!acc) continue; // punctuation-only words carry no text
           const rawScore = textSimilarity(target, acc);
-          // Distance penalty: discourage matches far from the current pointer, to prevent skipping ahead
-          const distancePenalty = (start - wp) * 0.03;
           const score = rawScore - distancePenalty;
 
           if (!best || score > best.score) {
@@ -255,32 +111,41 @@
         }
       }
 
-      // minimum similarity threshold
       if (best && best.rawScore >= MIN_MATCH_SCORE) {
+        const ws = whisperWords[best.start];
+        const we = whisperWords[best.end];
         rawSegments.push({
           text: line,
-          start: whisperWords[best.start].start,
-          end: whisperWords[best.end].end, // real acoustic end time, no arbitrary buffer
+          start: ws.start,
+          end: Math.max(we.end, ws.start), // real acoustic end time, never before start
           matched: true,
           score: best.rawScore
         });
-        wp = best.end + 1; // advance pointer forward
+        wp = best.end + 1; // strictly forward: consumed words are never reused
+        misses = 0;
       } else {
-        // if no match found, nudge wp forward proportionally to line length to avoid getting stuck
+        // honest miss: PASS 2 will interpolate it. The pointer stays put so
+        // the next line can still find the words this one failed to match;
+        // the search window widens instead.
         rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
-        wp = Math.min(N, wp + Math.max(1, Math.round(target.length / 7)));
+        misses++;
       }
     }
     return rawSegments;
   }
 
-  // ---- PASS 2 + PASS 3: shared finishing pipeline for either path above ----
+  // ---- PASS 2 + PASS 3: finishing pipeline ----
   function finishSegments(rawSegments, whisperWords) {
-    // PASS 2: Block-based Continuous Interpolation (distribute time across unmatched blocks so nothing disappears)
+    const n = rawSegments.length;
+    if (n === 0) return [];
+
+    // PASS 2: Block-based Continuous Interpolation (distribute time across
+    // unmatched blocks so nothing disappears)
+    const firstWordStart = whisperWords.length > 0 && whisperWords[0].start != null ? whisperWords[0].start : 0;
     const totalAudioDuration = whisperWords.length > 0 ? whisperWords[whisperWords.length - 1].end : 30;
     let idx = 0;
 
-    while (idx < rawSegments.length) {
+    while (idx < n) {
       if (rawSegments[idx].matched) {
         idx++;
         continue;
@@ -288,20 +153,19 @@
 
       // find the start/end of this unmatched block of lines
       const blockStart = idx;
-      while (idx < rawSegments.length && !rawSegments[idx].matched) {
-        idx++;
-      }
+      while (idx < n && !rawSegments[idx].matched) idx++;
       const blockEnd = idx; // exclusive
+      const count = blockEnd - blockStart;
 
-      // find the previous reference time
-      let tPrev = 0;
+      // previous anchor (end of previous matched line) or start of speech
+      let tPrev = firstWordStart;
       if (blockStart > 0 && rawSegments[blockStart - 1].end != null) {
         tPrev = rawSegments[blockStart - 1].end;
       }
 
-      // find the next reference time
+      // next anchor (start of next matched line) or end of audio
       let tNext = totalAudioDuration;
-      if (blockEnd < rawSegments.length && rawSegments[blockEnd].start != null) {
+      if (blockEnd < n && rawSegments[blockEnd].start != null) {
         tNext = rawSegments[blockEnd].start;
       }
 
@@ -311,91 +175,101 @@
         totalChars += Math.max(1, stripWs(rawSegments[k].text).length);
       }
 
-      const availableDuration = Math.max(0.4 * (blockEnd - blockStart), tNext - tPrev);
-      let currentCursor = tPrev;
+      // The gap is split by character length, but every line first receives
+      // MIN_DISPLAY_DURATION so none can be shorter than the floor. If the
+      // gap is too small for that, it is widened (PASS 3 resolves overlap).
+      const floorTotal = count * MIN_DISPLAY_DURATION;
+      const gap = Math.max(floorTotal, tNext - tPrev);
+      const extra = gap - floorTotal;
+      let cursor = tPrev;
 
-      // distribute time proportionally to actual character length, but only
-      // fill 80% of each slot with active text — the remaining 20% is left
-      // as a silence cushion so interpolated lines still get a visible gap
-      // between them instead of touching edge-to-edge.
       for (let k = blockStart; k < blockEnd; k++) {
         const charLen = Math.max(1, stripWs(rawSegments[k].text).length);
-        const slotDuration = (charLen / totalChars) * availableDuration;
-        const activeDuration = Math.max(0.25, slotDuration * 0.80);
-        rawSegments[k].start = currentCursor;
-        rawSegments[k].end = currentCursor + activeDuration;
-        currentCursor += slotDuration;
+        const slot = MIN_DISPLAY_DURATION + extra * (charLen / totalChars);
+        rawSegments[k].start = cursor;
+        rawSegments[k].end = cursor + slot;
+        cursor += slot; // contiguous slots: no blank screen inside a block
       }
     }
 
-    // PASS 3: Acoustic lock + minimum display duration.
-    // A subtitle appears when Whisper detected speech starting and, by
-    // default, disappears when it detected that speech ending. The old
-    // 20ms "draw-call safety" floor (end = start + 0.02) is gone: it let
-    // short lines pop up for a single frame. Instead any line shorter than
-    // MIN_DISPLAY_DURATION is stretched forward to that length, limited by
-    // the next line's start so two subtitles can never overlap. When the
-    // next line begins right away, this line's end meets that start exactly.
-
-    // First work out every line's locked start (including the matched-line
-    // bias nudge). It's computed back-to-front so each line can be clamped
-    // against the *actual* start the next line will have in the output —
-    // otherwise the +25ms nudge on the next line would leave a 25ms blank
-    // frame between two lines of continuous speech.
-    const lockedStarts = new Array(rawSegments.length);
-    for (let i = rawSegments.length - 1; i >= 0; i--) {
+    // PASS 3: display timing.
+    // Step 1 — natural start/end per line. Matched starts get the small
+    // late-nudge; starts are forced non-decreasing; an end is never < start.
+    const starts = new Array(n);
+    const ends = new Array(n);
+    for (let i = 0; i < n; i++) {
       const cur = rawSegments[i];
-      const nextLocked = i + 1 < rawSegments.length ? lockedStarts[i + 1] : null;
       let s = cur.start;
+      let e = cur.end;
+      if (e < s) e = s;
       if (cur.matched) {
-        const nudged = cur.start + MATCHED_START_BIAS;
-        // the nudge must never push the start past this line's own end
-        // (very short line) or into the next line's locked start (overlap)
-        if (nudged < cur.end && (nextLocked == null || nudged < nextLocked)) s = nudged;
+        const nudged = s + MATCHED_START_BIAS;
+        if (nudged < e) s = nudged;
       }
-      lockedStarts[i] = s;
+      if (i > 0 && s < starts[i - 1]) s = starts[i - 1];
+      if (e < s) e = s;
+      starts[i] = s;
+      ends[i] = e;
     }
 
+    // Step 2 — walk front to back in "collision groups". A group is a chain
+    // of lines whose consecutive starts are closer than MIN_DISPLAY_DURATION
+    // (including identical or overlapping starts), so they cannot each have
+    // the minimum on screen from their own start. The group is given one
+    // time span and shares it (weighted by characters, each line never less
+    // than the minimum) with contiguous hand-offs: no line is cut, none is
+    // reduced to zero, none overlaps the next. A group of one line is just
+    // the normal case.
     const finalSegments = [];
-    let prevEnd = 0;
+    let i = 0;
+    while (i < n) {
+      let j = i;
+      while (j + 1 < n && starts[j + 1] - starts[j] < MIN_DISPLAY_DURATION) j++;
+      const cnt = j - i + 1;
+      const spanStart = starts[i];
+      const nextStart = j + 1 < n ? starts[j + 1] : null;
 
-    for (let i = 0; i < rawSegments.length; i++) {
-      const cur = rawSegments[i];
-      const nextStart = i + 1 < rawSegments.length ? lockedStarts[i + 1] : null;
-
-      let exactStart = lockedStarts[i];
-      let exactEnd = cur.end; // real end of this line's speech
-
+      // natural end of the group, capped at the next line (seamless hand-off)
+      // and closed up when only a hair of silence separates them
+      let e = ends[j];
       if (nextStart != null) {
-        // alignment noise can leave a line starting at/after the next line's
-        // start; pull it back (not before the previous line's end) so it
-        // still has room to show
-        if (exactStart >= nextStart) {
-          exactStart = Math.max(Math.min(prevEnd, nextStart), nextStart - MIN_DISPLAY_DURATION);
-        }
-        // never overlap the next line
-        if (exactEnd > nextStart) exactEnd = nextStart;
+        if (e > nextStart) e = nextStart;
+        else if (nextStart - e <= CONTIGUOUS_GAP) e = nextStart;
       }
+      const spanEnd = Math.max(e, spanStart + cnt * MIN_DISPLAY_DURATION);
 
-      // Minimum display duration: stretch forward, never past the next
-      // line's start. A next line that starts inside the window simply
-      // caps the end exactly at next.start (seamless handoff).
-      if (exactEnd - exactStart < MIN_DISPLAY_DURATION) {
-        const target = exactStart + MIN_DISPLAY_DURATION;
-        exactEnd = nextStart != null ? Math.min(target, nextStart) : target;
+      // if the group needed more room than the gap allowed, the following
+      // line starts when the group ends instead of overlapping it
+      if (nextStart != null && spanEnd > nextStart) starts[j + 1] = spanEnd;
+
+      let totalW = 0;
+      for (let k = i; k <= j; k++) totalW += Math.max(1, stripWs(rawSegments[k].text).length);
+      const extra = spanEnd - spanStart - cnt * MIN_DISPLAY_DURATION;
+      let cursor = spanStart;
+
+      for (let k = i; k <= j; k++) {
+        const cur = rawSegments[k];
+        const w = Math.max(1, stripWs(cur.text).length);
+        const dur = MIN_DISPLAY_DURATION + extra * (w / totalW);
+        const segStart = cursor;
+        const segEnd = k === j ? spanEnd : cursor + dur;
+        cursor += dur;
+
+        let rs = round2(segStart);
+        let re = round2(segEnd);
+        // rounding must never leave a line under the floor
+        if (re - rs < MIN_DISPLAY_DURATION - 1e-6) re = round2(rs + MIN_DISPLAY_DURATION);
+
+        finalSegments.push({
+          text: cur.text,
+          start: rs,
+          end: re,
+          // an interpolated (never-matched) line was never anchored to real
+          // ASR text, so it always carries a hard 0 review flag
+          score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
+        });
       }
-
-      prevEnd = exactEnd;
-
-      finalSegments.push({
-        text: cur.text,
-        start: Number(exactStart.toFixed(2)),
-        end: Number(exactEnd.toFixed(2)),
-        // an interpolated (never-matched) block gets a hard 0 — it was
-        // never anchored to real ASR text at all, so it always deserves
-        // a review flag regardless of whatever score field it carried in
-        score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
-      });
+      i = j + 1;
     }
 
     return finalSegments;
