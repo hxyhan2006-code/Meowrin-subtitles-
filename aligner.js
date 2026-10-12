@@ -7,9 +7,9 @@
 /* ------------------------------------------------------------------ */
 const LOOKAHEAD = 20;              // จำนวนคำ Whisper ที่สแกนไปข้างหน้าจาก wp
 const MAX_SPAN = 20;               // จำนวนคำสูงสุดต่อ 1 ช่วงที่ลองรวม
-const MIN_SCORE = 0.30;            // เกณฑ์ผ่านขั้นต่ำของ textSimilarity
-const SKIP_PENALTY = 0.004;        // ลดคะแนนเลือกต่อคำที่ข้าม (กันกระโดดไปจับ Hook รอบหลัง)
-const SKIP_THRESHOLD_STEP = 0.008; // เพิ่มเกณฑ์ต่อคำที่ข้าม (ตั้งเป็น 0 เพื่อใช้เกณฑ์ 0.30 ตรงๆ)
+const MIN_SCORE = 0.20;            // เกณฑ์ผ่านขั้นต่ำของ textSimilarity (ผ่อนลงเพื่อให้คำสั้น/คำที่ Whisper สะกดเพี้ยนผ่านได้)
+const SKIP_PENALTY = 0.002;        // ลดคะแนนเลือกต่อคำที่ข้าม (กันกระโดดไปจับ Hook รอบหลัง)
+const SKIP_THRESHOLD_STEP = 0.003; // เพิ่มเกณฑ์ต่อคำที่ข้าม (ตั้งเป็น 0 เพื่อใช้ MIN_SCORE ตรงๆ)
 
 const SUBWORD_MIN_LEFTOVER = 2;    // ตัวอักษรที่เหลือในคำอย่างน้อยกี่ตัวถึงจะถือว่าคำนั้นคร่อมหลายบรรทัด
 const SUBWORD_MIN_SCORE = 0.5;     // ส่วนที่เหลือของคำต้องคล้ายต้นบรรทัดถัดไปอย่างน้อยเท่านี้
@@ -260,15 +260,18 @@ export function alignLinesToWords(lines, whisperWords) {
       const gapLo = lo ?? (prev ? prev.end : next ? Math.max(0, next.start - cap) : 0);
       const gapHi = hi ?? (next ? next.start : gapLo + cap);
       if (gapHi <= gapLo) {
+        // ช่องว่างแคบเกินไป: ห้ามเหลือ 0 วินาที ให้ยืดออกให้ทุกบรรทัดมีเวลาแสดงผล
         lo = gapLo;
-        hi = gapLo;
+        hi = gapLo + run.length * MIN_DISPLAY;
       } else {
         const dur = Math.min(gapHi - gapLo, cap);
         lo = gapLo + (gapHi - gapLo - dur) / 2;
         hi = lo + dur;
       }
     }
-    if (hi < lo) hi = lo;
+    // ประกันว่าช่วงที่นำมาแบ่งยาวอย่างน้อย run.length * MIN_DISPLAY เสมอ
+    const minSpan = run.length * MIN_DISPLAY;
+    if (hi - lo < minSpan) hi = lo + minSpan;
 
     let cum = 0;
     for (const r of run) {
@@ -291,12 +294,20 @@ export function alignLinesToWords(lines, whisperWords) {
     if (cur.end > nxt.start) cur.end = nxt.start;
   }
 
-  // 4.2 เวลาแสดงผลขั้นต่ำ (ไม่ล้ำเข้าไปทับ next.start)
+  // 4.2 เวลาแสดงผลขั้นต่ำ + Collision Guard
+  //     ห้ามบีบ cur.end ให้สั้นกุด: ให้เวลาครบ MIN_DISPLAY เสมอ
+  //     ถ้าชนบรรทัดถัดไป ให้ดัน next.start ออกไปเป็นลูกโซ่ (ไม่มีบรรทัดไหนหายจากจอ)
   for (let k = 0; k < timed.length; k++) {
     const cur = timed[k];
-    const nextStart = k + 1 < timed.length ? timed[k + 1].start : Infinity;
+    const nxt = k + 1 < timed.length ? timed[k + 1] : null;
+
+    if (cur.end < cur.start) cur.end = cur.start;
     if (cur.end - cur.start < MIN_DISPLAY) {
-      cur.end = Math.max(cur.end, Math.min(cur.start + MIN_DISPLAY, nextStart));
+      cur.end = cur.start + MIN_DISPLAY;
+      if (nxt && nxt.start < cur.end) {
+        nxt.start = cur.end;                       // ดันต่อเป็นลูกโซ่
+        if (nxt.end < nxt.start) nxt.end = nxt.start; // บรรทัดถัดไปจะถูกเติมให้ครบ MIN_DISPLAY ในรอบถัดไป
+      }
     }
   }
 
