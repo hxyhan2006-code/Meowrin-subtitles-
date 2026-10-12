@@ -2,13 +2,16 @@
 // Native ES module. Only the two entry points the app needs are exported.
 
 // ---------- constants ----------
-  // --- word-level monotonic matching (maps each user-edited line to whisper timing) ---
-  const WORD_LOOKAHEAD = 20;      // whisper words to scan ahead for a line's start (grows after consecutive misses, see MAX_LOOKAHEAD_GROWTH)
-  const MAX_LOOKAHEAD_GROWTH = 4; // lookahead window may grow up to this multiple of WORD_LOOKAHEAD after unmatched lines
-  const WORD_MAX_SPAN = 25;       // whisper words a single line may consume
-  const MIN_MATCH_SCORE = 0.35;   // similarity floor below which a line is treated as unmatched (matched:false, start/end:null)
-  const EARLY_BREAK_SCORE = 0.65; // score at which the inner span-search stops early once long enough
-  const DISTANCE_PENALTY = 0.03;  // per-word penalty for starting the match ahead of the pointer
+  // --- character-stream monotonic matching (maps each user-edited line to whisper timing) ---
+  // Thai has no spaces, so Whisper often returns one fused "word" covering
+  // several script lines. Matching therefore happens on CHARACTERS, not
+  // Whisper words: every Whisper word is expanded into a stream of characters
+  // with interpolated times, and each line is located inside that stream.
+  const CHAR_LOOKAHEAD_BASE = 100; // characters to scan ahead of the pointer (plus 2x the line length)
+  const MAX_LOOKAHEAD_GROWTH = 4;  // search window may grow up to this multiple after consecutive misses
+  const WINDOW_LEN_TOLERANCE = 0.25; // sliding-window length may differ from the line length by this fraction (min 1 char)
+  const MIN_MATCH_SCORE = 0.30;    // Levenshtein similarity floor; below this a line is matched:false, start/end:null
+  const DISTANCE_PENALTY = 0.003;  // per-character penalty for starting the match ahead of the pointer
 
   // --- display timing guards ---
   // Minimum time (seconds) a subtitle line stays on screen so a human can
@@ -36,97 +39,115 @@
   }
 
   // =========================================================
-  // STEP B — Monotonic forward matching + two-pass finishing
-  // PASS 1 (Monotonic Forward Window Matching, the only matcher):
-  // lines are matched to Whisper words strictly front-to-back in timeline
-  // order. A pointer `wp` marks the first Whisper word not yet consumed;
-  // each line searches only a bounded window ahead of it and, once matched,
-  // moves the pointer past the words it used. The pointer never moves
-  // backward, so a phrase spoken twice (a Hook, a repeated chorus line) is
-  // matched once per occurrence, in order: the first occurrence consumes the
-  // first set of words, the second occurrence can only see words after it.
-  // A line scoring below MIN_MATCH_SCORE is reported honestly as
-  // { matched:false, start:null, end:null } and left for PASS 2.
-  // (The old global character-level Needleman-Wunsch alignment is gone: on
-  // Thai and repeated passages it collapsed many lines onto a single point
-  // — start == end — and marked everything matched:true, so nothing ever
-  // reached the recovery pass and subtitles vanished.)
-  // PASS 2 (block-based continuous interpolation): every run of consecutive
-  // unmatched lines is spread across the gap between the anchor before it
-  // and the anchor after it, proportionally to character length, with every
-  // line guaranteed at least MIN_DISPLAY_DURATION.
-  // PASS 3 (display timing): no line is ever shorter than
-  // MIN_DISPLAY_DURATION or has zero length, and no line is ever dropped.
-  // Where lines collide (same/overlapping starts, or starts closer than the
-  // minimum), the colliding group shares its time span evenly (weighted by
-  // character count) as a seamless hand-off instead of one line being
-  // squeezed to 0 seconds.
+  // STEP B — Character-stream monotonic matching + two-pass finishing
+  // PASS 1 (Character-Stream Monotonic Matching): all Whisper text is laid
+  // out as one stream of characters, each with its own start/end time
+  // (linear interpolation across its word's duration). A pointer
+  // `charPointer` marks the first character not yet consumed and only ever
+  // moves forward. Each script line is located by sliding a window of about
+  // its own length across the stream (starting at the pointer, bounded by a
+  // lookahead) and scoring Levenshtein similarity. The best window at or
+  // above MIN_MATCH_SCORE gives the line its start (first character's
+  // start) and end (last character's end), and the pointer jumps past it —
+  // so a phrase spoken twice (a Hook) is matched once per occurrence, in
+  // order. Because matching is per character, a line may be a small slice
+  // of one fused Whisper token, or several lines may share one token.
+  // A line with no acceptable window gets { matched:false, start:null,
+  // end:null } and the pointer stays put (see the note in the matcher).
+  // PASS 2 (block-based interpolation): every run of consecutive unmatched
+  // lines is spread across the gap between the anchor before it and the
+  // anchor after it, proportionally to character length, each line getting
+  // at least MIN_DISPLAY_DURATION.
+  // PASS 3 (display timing, simple linear scan): lines are fixed one at a
+  // time, front to back. Every line gets at least MIN_DISPLAY_DURATION. If a
+  // line's end reaches the next line's start, it ends exactly there when
+  // there is room; otherwise it is held for the minimum and the next line
+  // starts when it ends. Nothing overlaps and time never jumps over a gap.
   // =========================================================
 
   export function alignLinesToWords(lines, whisperWords) {
     const words = Array.isArray(whisperWords) ? whisperWords : [];
     const safeLines = Array.isArray(lines) ? lines : [];
-    return finishSegments(alignLinesToWordsWindowed(safeLines, words), words);
+    const stream = buildCharStream(words);
+    return finishSegments(matchLinesToCharStream(safeLines, stream), words);
   }
 
-  // ---- PASS 1: monotonic forward window matcher ----
-  function alignLinesToWordsWindowed(lines, whisperWords) {
-    const words = whisperWords.map(w => stripWs(w.text));
-    const N = words.length;
-    let wp = 0;          // first whisper word not yet consumed — only ever moves forward
-    let misses = 0;      // consecutive unmatched lines, widens the search window
+  // ---- Whisper words -> continuous character stream [{ char, start, end }] ----
+  function buildCharStream(whisperWords) {
+    const stream = [];
+    for (let wi = 0; wi < whisperWords.length; wi++) {
+      const w = whisperWords[wi];
+      const chars = Array.from(stripWs(w.text));
+      const len = chars.length;
+      if (len === 0) continue;
+      const ws = Number(w.start) || 0;
+      const we = Math.max(ws, Number(w.end) || ws);
+      const dur = we - ws;
+      for (let k = 0; k < len; k++) {
+        stream.push({
+          char: chars[k],
+          start: ws + dur * (k / len),
+          end: ws + dur * ((k + 1) / len)
+        });
+      }
+    }
+    return stream;
+  }
+
+  // ---- PASS 1: monotonic forward matching on the character stream ----
+  function matchLinesToCharStream(lines, stream) {
+    const M = stream.length;
+    const streamText = stream.map(c => c.char).join('');
     const rawSegments = [];
+    let charPointer = 0; // only ever moves forward
+    let misses = 0;      // consecutive unmatched lines, widens the search window
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const target = stripWs(line);
+      if (!target) continue; // empty line: skipped entirely
 
-      // empty line (or no whisper words left): nothing to match, leave for PASS 2
-      if (!target || wp >= N) {
-        rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
-        continue;
-      }
-
+      const tLen = target.length;
       let best = null;
-      const lookahead = WORD_LOOKAHEAD * Math.min(MAX_LOOKAHEAD_GROWTH, 1 + misses);
-      const searchLimit = Math.min(N, wp + lookahead);
 
-      for (let start = wp; start < searchLimit; start++) {
-        let acc = '';
-        const spanLimit = Math.min(N, start + WORD_MAX_SPAN);
-        // Distance penalty: discourage matches far from the pointer, so a
-        // repeated phrase is taken at its nearest not-yet-used occurrence.
-        const distancePenalty = (start - wp) * DISTANCE_PENALTY;
-        for (let end = start; end < spanLimit; end++) {
-          acc += words[end];
-          if (!acc) continue; // punctuation-only words carry no text
-          const rawScore = textSimilarity(target, acc);
-          const score = rawScore - distancePenalty;
+      if (charPointer < M) {
+        const lookahead = (CHAR_LOOKAHEAD_BASE + tLen * 2) * Math.min(MAX_LOOKAHEAD_GROWTH, 1 + misses);
+        const searchLimit = Math.min(M - 1, charPointer + lookahead);
+        const tol = Math.max(1, Math.round(tLen * WINDOW_LEN_TOLERANCE));
+        const minL = Math.max(1, tLen - tol);
+        const maxL = tLen + tol;
 
-          if (!best || score > best.score) {
-            best = { start, end, score, rawScore };
+        for (let s = charPointer; s <= searchLimit; s++) {
+          const penalty = (s - charPointer) * DISTANCE_PENALTY;
+          // nothing further away can beat what we already have
+          if (best && 1 - penalty <= best.score) break;
+          for (let L = minL; L <= maxL; L++) {
+            if (s + L > M) break;
+            const rawScore = textSimilarity(target, streamText.slice(s, s + L));
+            const score = rawScore - penalty;
+            if (!best || score > best.score) {
+              best = { start: s, end: s + L - 1, score, rawScore };
+            }
           }
-          if (acc.length >= target.length && rawScore > EARLY_BREAK_SCORE) break;
-          if (acc.length > target.length * 1.5 + 4) break;
         }
       }
 
       if (best && best.rawScore >= MIN_MATCH_SCORE) {
-        const ws = whisperWords[best.start];
-        const we = whisperWords[best.end];
         rawSegments.push({
           text: line,
-          start: ws.start,
-          end: Math.max(we.end, ws.start), // real acoustic end time, never before start
+          start: stream[best.start].start,
+          end: stream[best.end].end,
           matched: true,
           score: best.rawScore
         });
-        wp = best.end + 1; // strictly forward: consumed words are never reused
+        charPointer = best.end + 1; // strictly forward: consumed characters are never reused
         misses = 0;
       } else {
-        // honest miss: PASS 2 will interpolate it. The pointer stays put so
-        // the next line can still find the words this one failed to match;
-        // the search window widens instead.
+        // Whisper missed it: leave it honest for PASS 2. The pointer is NOT
+        // advanced: a line that is absent from the audio has no characters
+        // in the stream, so skipping ahead by its length would swallow the
+        // next real line (and every repeat after it). The next line simply
+        // searches from the same pointer, with a wider window.
         rawSegments.push({ text: line, start: null, end: null, matched: false, score: 0 });
         misses++;
       }
@@ -151,7 +172,6 @@
         continue;
       }
 
-      // find the start/end of this unmatched block of lines
       const blockStart = idx;
       while (idx < n && !rawSegments[idx].matched) idx++;
       const blockEnd = idx; // exclusive
@@ -169,15 +189,14 @@
         tNext = rawSegments[blockEnd].start;
       }
 
-      // total character length of the unmatched block
       let totalChars = 0;
       for (let k = blockStart; k < blockEnd; k++) {
         totalChars += Math.max(1, stripWs(rawSegments[k].text).length);
       }
 
-      // The gap is split by character length, but every line first receives
-      // MIN_DISPLAY_DURATION so none can be shorter than the floor. If the
-      // gap is too small for that, it is widened (PASS 3 resolves overlap).
+      // Every line first receives MIN_DISPLAY_DURATION; the rest of the gap
+      // is split by character length. If the gap is too small for the
+      // floor, it is widened (PASS 3 pushes following lines forward).
       const floorTotal = count * MIN_DISPLAY_DURATION;
       const gap = Math.max(floorTotal, tNext - tPrev);
       const extra = gap - floorTotal;
@@ -192,84 +211,59 @@
       }
     }
 
-    // PASS 3: display timing.
-    // Step 1 — natural start/end per line. Matched starts get the small
-    // late-nudge; starts are forced non-decreasing; an end is never < start.
+    // PASS 3: linear scan, one line at a time, front to back.
     const starts = new Array(n);
     const ends = new Array(n);
     for (let i = 0; i < n; i++) {
       const cur = rawSegments[i];
       let s = cur.start;
-      let e = cur.end;
-      if (e < s) e = s;
+      let e = Math.max(cur.end, s);
       if (cur.matched) {
         const nudged = s + MATCHED_START_BIAS;
         if (nudged < e) s = nudged;
       }
-      if (i > 0 && s < starts[i - 1]) s = starts[i - 1];
-      if (e < s) e = s;
       starts[i] = s;
       ends[i] = e;
     }
 
-    // Step 2 — walk front to back in "collision groups". A group is a chain
-    // of lines whose consecutive starts are closer than MIN_DISPLAY_DURATION
-    // (including identical or overlapping starts), so they cannot each have
-    // the minimum on screen from their own start. The group is given one
-    // time span and shares it (weighted by characters, each line never less
-    // than the minimum) with contiguous hand-offs: no line is cut, none is
-    // reduced to zero, none overlaps the next. A group of one line is just
-    // the normal case.
     const finalSegments = [];
-    let i = 0;
-    while (i < n) {
-      let j = i;
-      while (j + 1 < n && starts[j + 1] - starts[j] < MIN_DISPLAY_DURATION) j++;
-      const cnt = j - i + 1;
-      const spanStart = starts[i];
-      const nextStart = j + 1 < n ? starts[j + 1] : null;
+    let prevEnd = -Infinity;
 
-      // natural end of the group, capped at the next line (seamless hand-off)
-      // and closed up when only a hair of silence separates them
-      let e = ends[j];
-      if (nextStart != null) {
-        if (e > nextStart) e = nextStart;
-        else if (nextStart - e <= CONTIGUOUS_GAP) e = nextStart;
+    for (let i = 0; i < n; i++) {
+      const cur = rawSegments[i];
+      // a start already pushed forward by the previous line is respected
+      const start = Math.max(starts[i], prevEnd);
+      // every line lasts at least MIN_DISPLAY_DURATION
+      let end = Math.max(ends[i], start + MIN_DISPLAY_DURATION);
+
+      if (i + 1 < n) {
+        const nextStart = starts[i + 1];
+        if (end >= nextStart) {
+          if (nextStart - start >= MIN_DISPLAY_DURATION) {
+            end = nextStart;                     // enough room: seamless hand-off
+          } else {
+            end = start + MIN_DISPLAY_DURATION;  // not enough room: hold the minimum...
+            starts[i + 1] = end;                 // ...and the next line starts right after
+          }
+        } else if (nextStart - end <= CONTIGUOUS_GAP) {
+          end = nextStart;                       // close a hair-thin blank frame
+        }
       }
-      const spanEnd = Math.max(e, spanStart + cnt * MIN_DISPLAY_DURATION);
+      prevEnd = end;
 
-      // if the group needed more room than the gap allowed, the following
-      // line starts when the group ends instead of overlapping it
-      if (nextStart != null && spanEnd > nextStart) starts[j + 1] = spanEnd;
+      const rs = round2(start);
+      let re = round2(end);
+      // rounding must never leave a line under the floor
+      if (re - rs < MIN_DISPLAY_DURATION - 1e-6) re = round2(rs + MIN_DISPLAY_DURATION);
 
-      let totalW = 0;
-      for (let k = i; k <= j; k++) totalW += Math.max(1, stripWs(rawSegments[k].text).length);
-      const extra = spanEnd - spanStart - cnt * MIN_DISPLAY_DURATION;
-      let cursor = spanStart;
-
-      for (let k = i; k <= j; k++) {
-        const cur = rawSegments[k];
-        const w = Math.max(1, stripWs(cur.text).length);
-        const dur = MIN_DISPLAY_DURATION + extra * (w / totalW);
-        const segStart = cursor;
-        const segEnd = k === j ? spanEnd : cursor + dur;
-        cursor += dur;
-
-        let rs = round2(segStart);
-        let re = round2(segEnd);
-        // rounding must never leave a line under the floor
-        if (re - rs < MIN_DISPLAY_DURATION - 1e-6) re = round2(rs + MIN_DISPLAY_DURATION);
-
-        finalSegments.push({
-          text: cur.text,
-          start: rs,
-          end: re,
-          // an interpolated (never-matched) line was never anchored to real
-          // ASR text, so it always carries a hard 0 review flag
-          score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
-        });
-      }
-      i = j + 1;
+      finalSegments.push({
+        text: cur.text,
+        start: rs,
+        end: re,
+        // an interpolated (never-matched) line was never anchored to real
+        // ASR text, so it always carries a hard 0 review flag
+        score: cur.matched ? (cur.score != null ? cur.score : 1) : 0
+      });
     }
 
     return finalSegments;
