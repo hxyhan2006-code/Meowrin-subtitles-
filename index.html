@@ -98,7 +98,7 @@
         <h2 class="box-title">1. สคริปต์ดิบ (บททั้งหมดที่ยังไม่ตัดบรรทัด)</h2>
         <div class="script-actions">
           <button type="button" class="action-btn" id="pasteRawBtn">📋 วาง</button>
-          <button type="button" class="action-btn danger" id="clearRawBtn">🗑️ ล้าง</button>
+          <button type="button" class="action-btn" id="clearRawBtn">🗑️ ล้าง</button>
         </div>
         <div class="error-box" id="rawErrorBox"></div>
         <textarea id="rawScript" class="script-area" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่..."></textarea>
@@ -107,6 +107,10 @@
       <!-- ส่วนสั่งการ AI คั่นกลาง -->
       <div class="ai-cta">
         <button type="button" class="cta-btn" id="autoSplitBtn">✨ แยกบรรทัดด้วย AI ทันที</button>
+        <div class="progress-wrap" id="autoSplitProgressWrap">
+          <div class="progress-track"><div class="progress-fill smooth" id="autoSplitProgressFill"></div></div>
+          <div class="progress-pct" id="autoSplitProgressPct">0%</div>
+        </div>
         <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
         <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
         <div class="error-box" id="autoSplitErrorBox"></div>
@@ -143,7 +147,7 @@
         <h2 class="box-title">2. สคริปต์ที่ตัดบรรทัดแล้ว (1 บรรทัด = 1 ซับ) <span class="line-count" id="scriptLineCount"></span></h2>
         <div class="script-actions">
           <button type="button" class="action-btn" id="pasteBtn">📋 วาง</button>
-          <button type="button" class="action-btn danger" id="clearScriptBtn">🗑️ ล้าง</button>
+          <button type="button" class="action-btn" id="clearScriptBtn">🗑️ ล้าง</button>
         </div>
         <div class="error-box" id="scriptErrorBox"></div>
         <textarea id="editedScript" class="script-area" placeholder="ผลลัพธ์จาก AI จะมาอยู่ตรงนี้ หรือวางสคริปต์ที่ตัดบรรทัดมาเองแล้วทีละบรรทัด..."></textarea>

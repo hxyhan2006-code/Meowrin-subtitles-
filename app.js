@@ -1418,6 +1418,60 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     return cleaned;
   }
 
+  // ---------- AI split progress bar: staged milestones (15 -> 45 -> 85 -> 100) with a gentle
+  // creep toward each milestone so the bar keeps moving and never looks frozen ----------
+  const autoSplitProgressWrap = document.getElementById('autoSplitProgressWrap');
+  const autoSplitProgressFill = document.getElementById('autoSplitProgressFill');
+  const autoSplitProgressPct = document.getElementById('autoSplitProgressPct');
+  let asProgress = 0, asTarget = 0, asCreepId = null, asHideTimer = null, asRemoveTimer = null;
+  function renderAutoSplitProgress(){
+    const p = Math.max(0, Math.min(100, Math.round(asProgress)));
+    autoSplitProgressFill.style.width = p + '%';
+    autoSplitProgressPct.textContent = p + '%';
+  }
+  function stopAutoSplitCreep(){ if (asCreepId){ clearInterval(asCreepId); asCreepId = null; } }
+  function clearAutoSplitTimers(){
+    stopAutoSplitCreep();
+    if (asHideTimer){ clearTimeout(asHideTimer); asHideTimer = null; }
+    if (asRemoveTimer){ clearTimeout(asRemoveTimer); asRemoveTimer = null; }
+  }
+  function beginAutoSplitProgress(){
+    clearAutoSplitTimers();
+    asProgress = 15; asTarget = 15;
+    autoSplitProgressWrap.classList.remove('fading');
+    autoSplitProgressWrap.classList.add('show');
+    renderAutoSplitProgress();
+    showAutoSplitStatus('กำลังเตรียมไฟล์เสียง...');
+  }
+  // move toward a milestone: snap forward quickly, then keep creeping so it never looks stuck
+  function autoSplitProgressTo(target){
+    asTarget = target;
+    stopAutoSplitCreep();
+    asCreepId = setInterval(() => {
+      const gap = asTarget - asProgress;
+      asProgress = gap < 0.4 ? asTarget : asProgress + gap * 0.1;
+      renderAutoSplitProgress();
+      if (asProgress >= asTarget) stopAutoSplitCreep();
+    }, 300);
+  }
+  function finishAutoSplitProgress(){
+    stopAutoSplitCreep();
+    asProgress = 100; renderAutoSplitProgress();
+    showAutoSplitStatus('เสร็จแล้ว ✓');
+    asHideTimer = setTimeout(() => {
+      autoSplitProgressWrap.classList.add('fading');
+      hideAutoSplitStatus();
+      asRemoveTimer = setTimeout(() => {
+        autoSplitProgressWrap.classList.remove('show', 'fading');
+      }, 500);
+    }, 900);
+  }
+  function failAutoSplitProgress(){
+    clearAutoSplitTimers();
+    autoSplitProgressWrap.classList.remove('show', 'fading');
+    hideAutoSplitStatus();
+  }
+
   function showAutoSplitStatus(msg){ autoSplitStatusRow.classList.add('show'); autoSplitStatusText.textContent = msg; }
   function hideAutoSplitStatus(){ autoSplitStatusRow.classList.remove('show'); }
   function showAutoSplitError(msg){ autoSplitErrorBox.textContent = msg; autoSplitErrorBox.classList.add('show'); }
@@ -1454,26 +1508,30 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบในกล่อง 1 ก่อน (หรือเปิด "ตั้งค่า AI เพิ่มเติม" แล้วสลับเป็นโหมด "เติมจากเสียงด้วย" ถ้าไม่มีสคริปต์)'); return; }
 
     autoSplitBtn.disabled = true;
+    beginAutoSplitProgress(); // 15%
     try {
       if (!audioEl.paused) audioEl.pause();
       if (cutRegions.length > 0) showAutoSplitStatus('กำลังตัดส่วนที่เลือกออกจากไฟล์เสียง...');
       const processedFile = getFileForProcessing();
 
+      autoSplitProgressTo(45); // Whisper phase
       showAutoSplitStatus('กำลังจับเวลาเสียงจริง (Whisper)...');
       const whisperWords = await callGroqWhisper(groqKey, processedFile, whisperHintTermsInput.value);
 
-      showAutoSplitStatus('กำลังให้ Gemini แยกบรรทัดตามจังหวะเสียงจริง...');
+      asProgress = Math.max(asProgress, 45); renderAutoSplitProgress();
+      autoSplitProgressTo(85); // Gemini phase
+      showAutoSplitStatus('กำลังแยกบรรทัดด้วย Gemini ตามจังหวะเสียงจริง...');
       const transcriptText = buildTranscriptForGemini(whisperWords);
       const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE);
 
       editedScript.value = splitLines;
       updateLineCount();
       showAutoSplitStats(splitLines);
-      hideAutoSplitStatus();
+      finishAutoSplitProgress(); // 100% then fade out
       editedScript.scrollIntoView({ behavior: 'smooth', block: 'center' }); // bring the result into view
     } catch (err){
       console.error(err);
-      hideAutoSplitStatus();
+      failAutoSplitProgress();
       showAutoSplitError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
     } finally {
       autoSplitBtn.disabled = false;
