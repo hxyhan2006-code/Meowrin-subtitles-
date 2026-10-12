@@ -5,11 +5,11 @@
 /* ------------------------------------------------------------------ */
 /* ค่าคงที่ปรับแต่งได้                                                   */
 /* ------------------------------------------------------------------ */
-const LOOKAHEAD = 6;               // จำนวนคำ Whisper ที่สแกนไปข้างหน้าจาก wp (สั้นๆ กันกระโดดไปจับ Hook รอบสอง)
-const MAX_SPAN = 6;                // จำนวนคำสูงสุดต่อ 1 ช่วงที่ลองรวม
-const MIN_SCORE = 0.20;            // เกณฑ์ผ่านขั้นต่ำของ textSimilarity (ผ่อนลงเพื่อให้คำสั้น/คำที่ Whisper สะกดเพี้ยนผ่านได้)
-const SKIP_PENALTY = 0.002;        // ลดคะแนนเลือกต่อคำที่ข้าม (กันกระโดดไปจับ Hook รอบหลัง)
-const SKIP_THRESHOLD_STEP = 0.003; // เพิ่มเกณฑ์ต่อคำที่ข้าม (ตั้งเป็น 0 เพื่อใช้ MIN_SCORE ตรงๆ)
+const LOOKAHEAD = 20;              // จำนวนคำ Whisper ที่สแกนไปข้างหน้าจาก wp
+const MAX_SPAN = 20;               // จำนวนคำสูงสุดต่อ 1 ช่วงที่ลองรวม
+const MIN_SCORE = 0.30;            // เกณฑ์ผ่านขั้นต่ำของ textSimilarity
+const SKIP_PENALTY = 0.004;        // ลดคะแนนเลือกต่อคำที่ข้าม (กันกระโดดไปจับ Hook รอบหลัง)
+const SKIP_THRESHOLD_STEP = 0.008; // เพิ่มเกณฑ์ต่อคำที่ข้าม (ตั้งเป็น 0 เพื่อใช้เกณฑ์ 0.30 ตรงๆ)
 
 const SUBWORD_MIN_LEFTOVER = 2;    // ตัวอักษรที่เหลือในคำอย่างน้อยกี่ตัวถึงจะถือว่าคำนั้นคร่อมหลายบรรทัด
 const SUBWORD_MIN_SCORE = 0.5;     // ส่วนที่เหลือของคำต้องคล้ายต้นบรรทัดถัดไปอย่างน้อยเท่านี้
@@ -18,7 +18,6 @@ const GLUE_GAP = 0.05;             // ช่องว่าง < ค่านี
 const DEAD_AIR_GAP = 0.12;         // ช่องว่าง > ค่านี้ = Dead Air จริง -> ห้ามแตะเด็ดขาด
 const MIN_DISPLAY = 0.28;          // เวลาแสดงผลขั้นต่ำต่อบรรทัด (วินาที)
 const MAX_SEC_PER_CHAR = 0.12;     // เพดานเวลาต่อตัวอักษร ตอนต้องเดาเวลาโดยไม่มีคำ Whisper รองรับ
-const MIN_START_SEPARATION = 0.20; // ระยะห่าง start ของสองบรรทัดติดกันขั้นต่ำ (ใช้ใน Local Constraint ของ Phase 4.2)
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
@@ -261,18 +260,15 @@ export function alignLinesToWords(lines, whisperWords) {
       const gapLo = lo ?? (prev ? prev.end : next ? Math.max(0, next.start - cap) : 0);
       const gapHi = hi ?? (next ? next.start : gapLo + cap);
       if (gapHi <= gapLo) {
-        // ช่องว่างแคบเกินไป: ห้ามเหลือ 0 วินาที ให้ยืดออกให้ทุกบรรทัดมีเวลาแสดงผล
         lo = gapLo;
-        hi = gapLo + run.length * MIN_DISPLAY;
+        hi = gapLo;
       } else {
         const dur = Math.min(gapHi - gapLo, cap);
         lo = gapLo + (gapHi - gapLo - dur) / 2;
         hi = lo + dur;
       }
     }
-    // ประกันว่าช่วงที่นำมาแบ่งยาวอย่างน้อย run.length * MIN_DISPLAY เสมอ
-    const minSpan = run.length * MIN_DISPLAY;
-    if (hi - lo < minSpan) hi = lo + minSpan;
+    if (hi < lo) hi = lo;
 
     let cum = 0;
     for (const r of run) {
@@ -295,31 +291,12 @@ export function alignLinesToWords(lines, whisperWords) {
     if (cur.end > nxt.start) cur.end = nxt.start;
   }
 
-  // 4.2 เวลาแสดงผลขั้นต่ำ + Collision Guard แบบ "Local Constraint"
-  //     ไม่มีการดันเวลาลูกโซ่ (Cascade Push) อีกต่อไป:
-  //     - ยืด cur.end ให้ครบ MIN_DISPLAY
-  //     - ถ้าชน nxt.start -> ล็อก cur.end = nxt.start (ชนขอบพอดี) ไม่แตะเวลาเริ่มของบรรทัดถัดไป
-  //     - ยกเว้น nxt.start อยู่ใกล้ cur.start จริงๆ (< MIN_START_SEPARATION) ถึงขยับ nxt.start เล็กน้อย
-  //       และห้ามลามไปกระทบ nxt+1 (เพดานคือ start ของ nxt+1)
+  // 4.2 เวลาแสดงผลขั้นต่ำ (ไม่ล้ำเข้าไปทับ next.start)
   for (let k = 0; k < timed.length; k++) {
     const cur = timed[k];
-    const nxt = k + 1 < timed.length ? timed[k + 1] : null;
-    const nn = k + 2 < timed.length ? timed[k + 2] : null;
-
-    if (cur.end < cur.start) cur.end = cur.start;
+    const nextStart = k + 1 < timed.length ? timed[k + 1].start : Infinity;
     if (cur.end - cur.start < MIN_DISPLAY) {
-      cur.end = cur.start + MIN_DISPLAY;
-
-      if (nxt && cur.end > nxt.start) {
-        if (nxt.start - cur.start < MIN_START_SEPARATION) {
-          // start ของสองบรรทัดชิดกันเกินไป: ขยับ nxt.start ออกเล็กน้อย แต่ไม่ให้เกิน start ของ nxt+1
-          const ceiling = nn ? nn.start : Infinity;
-          const newStart = Math.min(cur.start + MIN_START_SEPARATION, ceiling);
-          if (newStart > nxt.start) nxt.start = newStart;
-          if (nxt.end < nxt.start) nxt.end = nxt.start;
-        }
-        cur.end = nxt.start; // ชนขอบพอดี ไม่ซ้อนทับ
-      }
+      cur.end = Math.max(cur.end, Math.min(cur.start + MIN_DISPLAY, nextStart));
     }
   }
 
@@ -333,17 +310,6 @@ export function alignLinesToWords(lines, whisperWords) {
       cur.end = nxt.start;
     }
     // gap > DEAD_AIR_GAP => ไม่แตะ
-  }
-
-  // 4.4 บังคับ Time Order เคร่งครัด: บรรทัดก่อนหน้าต้องจบก่อนบรรทัดถัดไปเริ่มเสมอ
-  //     (ตรวจรอบสุดท้าย — ไม่ขยับ start ของบรรทัดอื่นนอกจากกรณีสลับลำดับจริง และไม่ดันลูกโซ่)
-  for (let k = 0; k < timed.length - 1; k++) {
-    const cur = timed[k];
-    const nxt = timed[k + 1];
-    if (cur.end < cur.start) cur.end = cur.start;
-    if (nxt.start < cur.start) nxt.start = cur.start;   // กันลำดับสลับหน้าหลัง
-    if (nxt.end < nxt.start) nxt.end = nxt.start;
-    if (cur.end > nxt.start) cur.end = nxt.start;       // บรรทัด k ต้องจบก่อนบรรทัด k+1
   }
 
   return recs.map((r) => ({
