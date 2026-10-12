@@ -75,6 +75,20 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   const progressFill = document.getElementById('progressFill');
   const progressPct = document.getElementById('progressPct');
   const trimCard = document.getElementById('trimCard');
+  const clearScriptBtn = document.getElementById('clearScriptBtn');
+  const scriptErrorBox = document.getElementById('scriptErrorBox');
+
+  // unified 1:1 stage (tab 3): style preview canvas <-> result video
+  const stage = document.getElementById('stage');
+  const stageSwitch = document.getElementById('stageSwitch');
+  const stageSwitchBtns = Array.from(stageSwitch.querySelectorAll('button'));
+  let hasResult = false;
+  function setStageView(view){
+    stage.dataset.view = view;
+    stageSwitchBtns.forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    if (view !== 'video') previewVideo.pause();
+  }
+  stageSwitchBtns.forEach(b => b.addEventListener('click', () => setStageView(b.dataset.view)));
 
   const waveformScroll = document.getElementById('waveformScroll');
   const waveformWrap = document.getElementById('waveformWrap');
@@ -194,12 +208,9 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     localStorage.setItem('gemini_api_key', apiKeyGeminiInput.value.trim());
   });
 
-  // ---------- persist raw (unsplit) script so a refresh doesn't lose it ----------
-  const savedRawScript = localStorage.getItem('gs_raw_script');
-  if (savedRawScript) rawScriptInput.value = savedRawScript;
-  rawScriptInput.addEventListener('input', () => {
-    localStorage.setItem('gs_raw_script', rawScriptInput.value);
-  });
+  // ---------- scripts are never persisted: every launch starts with empty boxes.
+  // (only the API keys above are remembered) — purge any leftover from older versions ----------
+  localStorage.removeItem('gs_raw_script');
 
   // ---------- word-range preset chips + custom input (target line length for
   // AI split — a guideline passed into the Gemini prompt, not a hard cap; the
@@ -352,14 +363,15 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     const spx = Math.max(0, STROKE_PX * PREVIEW_SCALE);
     pctx.font = `700 ${fpx}px "${FONT_FAMILY}"`;
     pctx.textAlign = 'center';
-    pctx.textBaseline = 'middle';
+    pctx.textBaseline = 'alphabetic';
     pctx.lineJoin = 'round';
     pctx.miterLimit = 2;
     pctx.lineWidth = spx;
     pctx.strokeStyle = '#000000';
     pctx.fillStyle = '#FFFFFF';
-    if (spx > 0) pctx.strokeText(PREVIEW_SAMPLE_TEXT, w / 2, h / 2);
-    pctx.fillText(PREVIEW_SAMPLE_TEXT, w / 2, h / 2);
+    const py = h - h * BOTTOM_MARGIN_RATIO; // same baseline rule as drawFrame()
+    if (spx > 0) pctx.strokeText(PREVIEW_SAMPLE_TEXT, w / 2, py);
+    pctx.fillText(PREVIEW_SAMPLE_TEXT, w / 2, py);
   }
 
   const savedFontPxRaw = localStorage.getItem('gs_font_px');
@@ -374,6 +386,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     onChange: (v) => {
       FONT_PX = v;
       localStorage.setItem('gs_font_px', String(v));
+      if (hasResult) setStageView('style');
       drawStylePreview();
     }
   });
@@ -386,6 +399,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     onChange: (v) => {
       STROKE_PX = v;
       localStorage.setItem('gs_stroke_px', String(v));
+      if (hasResult) setStageView('style');
       drawStylePreview();
     }
   });
@@ -423,16 +437,57 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
 
   // ---------- one-tap paste (pulls latest copied text straight in) ----------
   pasteBtn.addEventListener('click', async () => {
-    hideError();
+    hideError(scriptErrorBox);
     try {
       const text = await navigator.clipboard.readText();
-      if (!text){ showError('คลิปบอร์ดว่างเปล่า — คัดลอกสคริปต์มาก่อนแล้วค่อยกดวาง'); return; }
+      if (!text){ showError('คลิปบอร์ดว่างเปล่า — คัดลอกสคริปต์มาก่อนแล้วค่อยกดวาง', scriptErrorBox); return; }
       editedScript.value = text;
       editedScript.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (err){
-      showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง');
+      showError('วางอัตโนมัติไม่ได้ (เบราว์เซอร์ไม่อนุญาต clipboard) — ลองกดค้างในช่องแล้วเลือก "วาง" เอง', scriptErrorBox);
     }
   });
+
+  // ---------- clear the whole script box in one tap ----------
+  clearScriptBtn.addEventListener('click', () => {
+    editedScript.value = '';
+    fullscreenTextarea.value = '';
+    hideError(scriptErrorBox);
+    hideAutoSplitStats();
+    editedScript.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  // ---------- 3-step tab wizard (top tabs + sticky footer back/next) ----------
+  const tabBtns = Array.from(document.querySelectorAll('.tab'));
+  const tabPanels = Array.from(document.querySelectorAll('.panel'));
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const mainScroll = document.getElementById('mainScroll');
+  let currentTab = 0;
+  function goTab(i){
+    i = Math.max(0, Math.min(tabPanels.length - 1, i));
+    if (i !== 0 && !audioEl.paused) audioEl.pause();
+    currentTab = i;
+    tabBtns.forEach((b, k) => {
+      b.classList.toggle('active', k === i);
+      b.setAttribute('aria-selected', String(k === i));
+    });
+    tabPanels.forEach((p, k) => p.classList.toggle('active', k === i));
+    backBtn.disabled = i === 0;
+    nextBtn.hidden = i === tabPanels.length - 1;
+    mainScroll.scrollTop = 0;
+    // the waveform can't be measured while its tab is display:none — redo layout when it's visible again
+    if (i === 0 && audioBuffer){
+      requestAnimationFrame(() => {
+        recomputeBasePxPerSecond(); layoutWaveform(); drawWaveform(); renderPlayheadOnly();
+      });
+    }
+    if (i === 2) drawStylePreview();
+  }
+  tabBtns.forEach((b, k) => b.addEventListener('click', () => goTab(k)));
+  backBtn.addEventListener('click', () => goTab(currentTab - 1));
+  nextBtn.addEventListener('click', () => goTab(currentTab + 1));
+  goTab(0);
   // keep the main textarea synced live too, in case the fullscreen mode
   // is dismissed some other way (e.g. mobile back gesture)
   fullscreenTextarea.addEventListener('input', () => {
@@ -1399,7 +1454,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
 
     if (!groqKey){ showAutoSplitError('กรอก Groq API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
     if (!geminiKey){ showAutoSplitError('กรอก Gemini API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
-    if (!selectedFile){ showAutoSplitError('เลือกไฟล์เสียงหรือวิดีโอก่อน (ข้อ 1)'); return; }
+    if (!selectedFile){ showAutoSplitError('เลือกไฟล์เสียงหรือวิดีโอก่อน (แท็บ "เสียง & ตัดต่อ")'); return; }
     if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบที่ยังไม่ตัดบรรทัดก่อน (หรือสลับไปโหมด "เติมจากเสียงที่ได้ยินด้วย" ถ้าไม่มีสคริปต์)'); return; }
 
     autoSplitBtn.disabled = true;
@@ -1527,6 +1582,8 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   // out wrong, nudge the whole-clip offset slider above or edit the script
   // and re-run. ----------
   startBtn.addEventListener('click', async () => {
+    // หยุดและรีเซ็ตคลิปตัวอย่างเก่าทันที กันเสียงคลิปเก่าแอบดังแทรกตอนเรนเดอร์คลิปใหม่
+    previewVideo.pause(); previewVideo.currentTime = 0;
     hideError();
     resultCard.classList.remove('show');
 
@@ -1537,11 +1594,17 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     // literal burned-in subtitle text.
     const lines = editedScript.value.split('\n').map(l => l.trim().replace(/^\[AI\]\s*/, '')).filter(l => l.length > 0);
 
-    if (!groqKey){ showError('กรอก Groq API Key ก่อน'); return; }
-    if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน'); return; }
-    if (lines.length === 0){ showError('ตรวจสอบ/แก้ไขวรรคในช่องด้านบนก่อน (อย่างน้อย 1 บรรทัด)'); return; }
+    if (!groqKey){ showError('กรอก Groq API Key ก่อน (กดปุ่ม ⚙️ API Keys ด้านบน)'); return; }
+    if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน (แท็บ "เสียง & ตัดต่อ")'); return; }
+    if (lines.length === 0){ showError('ใส่สคริปต์ก่อน (แท็บ "สคริปต์" อย่างน้อย 1 บรรทัด)'); return; }
 
     if (!audioEl.paused) audioEl.pause();
+
+    // stage: show the progress overlay on top of the style preview while rendering
+    hasResult = false;
+    stageSwitch.classList.remove('show');
+    setStageView('style');
+    stage.classList.add('is-rendering');
 
     startBtn.disabled = true;
     setStep(step1, 'active'); setStep(step2, 'pending'); setStep(step3, 'pending');
@@ -1595,6 +1658,12 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       dlSrt.href = URL.createObjectURL(srtBlob);
 
       resultCard.classList.add('show');
+      hasResult = true;
+      stageSwitch.classList.add('show');
+      stage.classList.remove('is-rendering');
+      setStageView('video');          // swap the stage to the finished clip
+      previewVideo.currentTime = 0;
+      previewVideo.play().catch(() => {}); // autoplay may be blocked on some browsers — controls are visible
       hideStatus();
     } catch (err){
       console.error(err);
@@ -1602,6 +1671,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       hideProgress();
       showError(err.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
     } finally {
+      stage.classList.remove('is-rendering');
       startBtn.disabled = false;
     }
   });

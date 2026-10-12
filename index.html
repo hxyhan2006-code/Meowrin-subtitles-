@@ -2,12 +2,12 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Green Screen Subtitle Generator</title>
 
 <!-- ===== PWA: manifest, meta tags, service worker registration ===== -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d1210">
+<meta name="theme-color" content="#0b0e0d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,169 +23,194 @@
 </head>
 
 <body>
-<div class="wrap">
+<div class="app">
 
-  <header>
-    <div class="head-row">
-      <div>
-        <p class="tag">SUBTITLE ALIGNER · CHROMA KEY 1:1</p>
-        <h1>Green Screen Subtitle Generator</h1>
-      </div>
-      <button type="button" class="settings-btn" id="settingsBtn">⚙️ API Keys</button>
-    </div>
-    <p>วางสคริปต์ที่ตัดบรรทัดมาแล้ว (1 บรรทัด = 1 ซับ) → Groq Whisper จับเวลาเสียงจริง → คลิปซับจอเขียว 1080×1080 ตรงปาก 100%</p>
+  <header class="topbar">
+    <h1>Green Screen Subtitle</h1>
+    <button type="button" class="settings-btn" id="settingsBtn">⚙️ API Keys</button>
   </header>
 
-  <div class="card">
-    <h2>1 · ไฟล์เสียงพากย์ (.mp3 / .wav / .m4a)</h2>
-    <div class="file-drop" id="fileDrop">
-      <span class="icon">🎙️</span>
-      <div>แตะเพื่อเลือกไฟล์เสียง หรือไฟล์วิดีโอ</div>
-      <div class="hint">ไฟล์เสียงพากย์เพียวๆ หรือไฟล์วิดีโอ (.mp4/.mov/.webm) — ถ้าเป็นวิดีโอจะดึงเสียงออกมาให้อัตโนมัติ</div>
-      <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.mp4,.mov,.webm,.mkv,.m4v,audio/*,video/*">
-    </div>
-    <div class="file-info" id="fileInfo"></div>
-    <audio id="audioEl" style="display:none;"></audio>
-  </div>
+  <nav class="tabs" role="tablist" aria-label="ขั้นตอน">
+    <button type="button" class="tab active" role="tab" aria-selected="true" data-tab="0"><i>1</i><span>เสียง &amp; ตัดต่อ</span></button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-tab="1"><i>2</i><span>สคริปต์</span></button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-tab="2"><i>3</i><span>สตูดิโอ &amp; ส่งออก</span></button>
+  </nav>
 
-  <div class="card" id="trimCard" style="display:none;">
-    <h2>1.5 · ตัดส่วนที่ไม่ต้องการก่อนส่งเข้า AI (ไม่บังคับ)</h2>
+  <main class="main" id="mainScroll">
 
-    <div class="wf-zoom-row">
-      <button type="button" class="fs-btn" id="wfZoomOut" aria-label="ซูมออก">−</button>
-      <span class="wf-zoom-label" id="wfZoomLabel">พอดีจอ</span>
-      <button type="button" class="fs-btn" id="wfZoomIn" aria-label="ซูมเข้า">+</button>
-      <button type="button" class="expand-btn wf-fit-btn" id="wfZoomFitBtn">พอดีจอ</button>
-    </div>
-
-    <div class="waveform-scroll" id="waveformScroll">
-      <div class="waveform-wrap" id="waveformWrap">
-        <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
-        <div class="wf-playhead" id="wfPlayhead"></div>
+    <!-- ============ แท็บที่ 1 : เสียง & ตัดต่อ ============ -->
+    <section class="panel active" id="panel0" role="tabpanel">
+      <div class="card">
+        <h2>ไฟล์เสียงพากย์</h2>
+        <div class="file-drop" id="fileDrop">
+          <span class="icon">🎙️</span>
+          <div class="drop-title">แตะเพื่อเลือกไฟล์เสียงหรือวิดีโอ</div>
+          <div class="hint">.mp3 .wav .m4a หรือวิดีโอ .mp4 .mov .webm — ถ้าเป็นวิดีโอจะดึงเสียงออกให้อัตโนมัติ</div>
+          <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.mp4,.mov,.webm,.mkv,.m4v,audio/*,video/*">
+        </div>
+        <div class="file-info" id="fileInfo"></div>
+        <audio id="audioEl" style="display:none;"></audio>
       </div>
-    </div>
 
-    <div class="wf-controls">
-      <button type="button" class="wf-play-btn" id="wfPlayBtn">▶</button>
-      <span class="wf-time" id="wfTime">0:00 / 0:00</span>
-    </div>
+      <div class="card" id="trimCard" style="display:none;">
+        <h2>ตัดท่อนเสียงที่ไม่ต้องการ (ไม่บังคับ)</h2>
 
-    <div class="wf-sel-actions">
-      <button type="button" class="wf-split-btn" id="wfSplitBtn" disabled>✂️ แบ่งแยก</button>
-      <button type="button" class="wf-play-sel-btn" id="wfPlaySelBtn" disabled>▶ ฟัง</button>
-      <button type="button" class="wf-cut-sel-btn" id="wfCutSelBtn" disabled>🗑️ ลบ</button>
-    </div>
-    <div class="wf-history-row">
-      <button type="button" id="wfUndoBtn" disabled>↩️ ย้อนกลับ</button>
-      <button type="button" id="wfRedoBtn" disabled>↪️ ย้อนไป (ทำซ้ำ)</button>
-    </div>
-    <div class="cut-list" id="cutList"></div>
-    <p class="wf-hint">แบบ CapCut: เลื่อนเพลย์เฮดไปจุดที่ต้องการ (แตะ/ลากบนคลื่นเสียง หรือลากแถบเลื่อนด้านบน) แล้วกด "แบ่งแยก" เพื่อตัดแบ่ง ณ จุดนั้น จากนั้นแตะที่ท่อนที่ต้องการทิ้ง (จะขึ้นกรอบขาวไฮไลต์) แล้วกด "ลบ" — ท่อนนั้นจะหายไปทันทีและท่อนที่เหลือเลื่อนมาต่อกัน (ไม่มีช่องว่าง) ท่อนที่ลบจะไม่ถูกส่งเข้า Whisper และไม่อยู่ในคลิปสุดท้าย กดผิดกด "ย้อนกลับ" ได้ ใช้ปุ่ม −/+ หรือย่อสองนิ้ว (pinch) เพื่อซูมดูจังหวะให้ชัดก่อนแบ่ง (แตะรายการด้านล่างเพื่อยกเลิกการลบแต่ละท่อน)</p>
-  </div>
+        <div class="wf-zoom-row">
+          <button type="button" class="fs-btn" id="wfZoomOut" aria-label="ซูมออก">−</button>
+          <span class="wf-zoom-label" id="wfZoomLabel">พอดีจอ</span>
+          <button type="button" class="fs-btn" id="wfZoomIn" aria-label="ซูมเข้า">+</button>
+          <button type="button" class="expand-btn wf-fit-btn" id="wfZoomFitBtn">พอดีจอ</button>
+        </div>
 
-  <div class="card">
-    <div class="card-head-row">
-      <h2>2 · สคริปต์ที่ตัดบรรทัดมาแล้ว (1 บรรทัด = 1 ซับ)</h2>
-      <div style="display:flex;gap:8px;flex:0 0 auto;">
-        <button type="button" class="expand-btn" id="pasteBtn">📋 วาง</button>
-        <button type="button" class="expand-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
+        <div class="waveform-scroll" id="waveformScroll">
+          <div class="waveform-wrap" id="waveformWrap">
+            <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
+            <div class="wf-playhead" id="wfPlayhead"></div>
+          </div>
+        </div>
+
+        <div class="wf-controls">
+          <button type="button" class="wf-play-btn" id="wfPlayBtn" aria-label="เล่น/หยุด">▶</button>
+          <span class="wf-time" id="wfTime">0:00 / 0:00</span>
+        </div>
+
+        <div class="wf-sel-actions">
+          <button type="button" class="wf-split-btn" id="wfSplitBtn" disabled>✂️ แบ่งแยก</button>
+          <button type="button" class="wf-play-sel-btn" id="wfPlaySelBtn" disabled>▶ ฟัง</button>
+          <button type="button" class="wf-cut-sel-btn" id="wfCutSelBtn" disabled>🗑️ ลบ</button>
+        </div>
+        <div class="wf-history-row">
+          <button type="button" id="wfUndoBtn" disabled>↩️ ย้อนกลับ</button>
+          <button type="button" id="wfRedoBtn" disabled>↪️ ทำซ้ำ</button>
+        </div>
+        <div class="cut-list" id="cutList"></div>
+        <p class="wf-hint">แตะ/ลากบนคลื่นเสียงเพื่อเลื่อนเพลย์เฮด → กด "แบ่งแยก" → แตะท่อนที่ไม่ต้องการ (ขึ้นกรอบขาว) → กด "ลบ" ท่อนที่เหลือจะต่อกันทันที และท่อนที่ลบจะไม่ถูกส่งเข้า Whisper หรืออยู่ในคลิปสุดท้าย ซูมด้วยปุ่ม −/+ หรือบีบสองนิ้ว แตะรายการด้านบนที่ ✕ เพื่อยกเลิกการลบ</p>
       </div>
-    </div>
-    <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed var(--line);">
-      <label class="field-label" for="rawScript">🪄 แยกบรรทัดอัตโนมัติด้วย AI (ไม่บังคับ) — วางสคริปต์ดิบที่ยังไม่ตัดบรรทัด (เว้นว่างได้ถ้าใช้โหมด "เติมจากเสียง")</label>
-      <textarea id="rawScript" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่... หรือเว้นว่างถ้าให้ AI ฟังเอาเองทั้งหมด" style="min-height:90px;"></textarea>
+    </section>
 
-      <label class="field-label" style="margin-top:12px;">โหมดการอ้างอิงสคริปต์</label>
-      <div class="chip-row" id="scriptModeChips">
-        <button type="button" class="chip-btn" data-mode="strict">🔒 ยึดสคริปต์ 100%</button>
-        <button type="button" class="chip-btn" data-mode="fill">✨ เติมจากเสียงที่ได้ยินด้วย</button>
+    <!-- ============ แท็บที่ 2 : สคริปต์ ============ -->
+    <section class="panel" id="panel1" role="tabpanel">
+      <div class="script-actions">
+        <button type="button" class="action-btn" id="pasteBtn">📋 วางจากคลิปบอร์ด</button>
+        <button type="button" class="action-btn danger" id="clearScriptBtn">🗑️ ล้างทั้งหมด</button>
       </div>
-      <p class="wf-hint" id="scriptModeHint"></p>
+      <div class="error-box" id="scriptErrorBox"></div>
 
-      <label class="field-label" style="margin-top:12px;">🎯 เป้าหมายจำนวนคำต่อบรรทัด (ควรอยู่ในช่วงนี้เกือบทุกบรรทัด ยกเว้นกรณีจำเป็นจริงๆ เท่านั้น)</label>
-      <div class="chip-row" id="wordRangeChips">
-        <button type="button" class="chip-btn" data-min="1" data-max="3">1-3</button>
-        <button type="button" class="chip-btn" data-min="2" data-max="3">2-3</button>
-        <button type="button" class="chip-btn" data-min="2" data-max="4">2-4</button>
-        <button type="button" class="chip-btn" data-min="3" data-max="5">3-5</button>
+      <label class="field-label" for="editedScript">1 บรรทัด = 1 ซับ — กด Enter เพื่อขึ้นบรรทัดใหม่</label>
+      <textarea id="editedScript" class="script-area" placeholder="พิมพ์หรือวางสคริปต์ทีละบรรทัด..."></textarea>
+      <button type="button" class="ghost-btn" id="expandEditBtn">⤢ ขยายเต็มจอ</button>
+
+      <details class="ai-tools-drawer">
+        <summary>🪄 เครื่องมือแยกบรรทัดด้วย AI</summary>
+        <div class="ai-tools-body">
+          <label class="field-label" for="rawScript">สคริปต์ดิบที่ยังไม่ตัดบรรทัด (เว้นว่างได้ถ้าใช้โหมด "เติมจากเสียง")</label>
+          <textarea id="rawScript" class="raw-area" placeholder="วางสคริปต์เต็ม (ยังไม่ตัดวรรค) ที่นี่..."></textarea>
+
+          <label class="field-label gap">โหมดการอ้างอิงสคริปต์</label>
+          <div class="chip-row" id="scriptModeChips">
+            <button type="button" class="chip-btn" data-mode="strict">🔒 ยึดสคริปต์ 100%</button>
+            <button type="button" class="chip-btn" data-mode="fill">✨ เติมจากเสียงด้วย</button>
+          </div>
+          <p class="wf-hint" id="scriptModeHint"></p>
+
+          <label class="field-label gap">🎯 เป้าหมายจำนวนคำต่อบรรทัด</label>
+          <div class="chip-row" id="wordRangeChips">
+            <button type="button" class="chip-btn" data-min="1" data-max="3">1-3</button>
+            <button type="button" class="chip-btn" data-min="2" data-max="3">2-3</button>
+            <button type="button" class="chip-btn" data-min="2" data-max="4">2-4</button>
+            <button type="button" class="chip-btn" data-min="3" data-max="5">3-5</button>
+          </div>
+          <input type="text" id="wordRangeCustom" placeholder="หรือกำหนดเอง เช่น 4-6">
+
+          <label class="field-label gap" for="whisperHintTerms">🗣️ คำศัพท์เฉพาะ/ชื่อตัวละคร (ไม่บังคับ)</label>
+          <input type="text" id="whisperHintTerms" placeholder="คั่นด้วยจุลภาค เช่น ชื่อตัวละคร, ศัพท์เฉพาะ">
+          <p class="wf-hint">ช่วยให้ Whisper ถอดเสียงคำเหล่านี้แม่นขึ้น ใช้ทั้งตอน "แยกบรรทัดด้วย AI" และตอน "สร้างคลิป"</p>
+
+          <button type="button" class="action-btn wide" id="autoSplitBtn">🪄 แยกบรรทัดด้วย AI (ใช้ไฟล์เสียงจากแท็บ 1)</button>
+          <p class="wf-hint">Whisper จับเวลาเสียงจริงก่อน แล้ว Gemini ช่วยตัดบรรทัดตามจังหวะ ผลลัพธ์จะเติมในช่องสคริปต์ด้านบน ตรวจ/แก้ได้ก่อนสร้างคลิปเสมอ (แยกรอบกับขั้น "สร้างคลิป" ไม่กระทบกัน)</p>
+          <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
+          <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
+          <div class="error-box" id="autoSplitErrorBox"></div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ แท็บที่ 3 : สตูดิโอ & ส่งออก ============ -->
+    <section class="panel" id="panel2" role="tabpanel">
+
+      <div class="stage-wrap">
+        <div class="stage" id="stage" data-view="style">
+          <canvas id="stylePreviewCanvas" width="540" height="540"></canvas>
+          <video id="previewVideo" controls playsinline></video>
+          <div class="stage-overlay">
+            <div class="status" id="statusRow"><div class="spinner"></div><span id="statusText">กำลังทำงาน...</span></div>
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+              <div class="progress-pct" id="progressPct">0%</div>
+            </div>
+            <div class="step-list" id="stepList">
+              <div id="step1" class="pending">จับเวลาเสียงจริง (Whisper)</div>
+              <div id="step2" class="pending">จับคู่บรรทัดกับเสียง</div>
+              <div id="step3" class="pending">เรนเดอร์คลิปจอเขียว</div>
+            </div>
+          </div>
+        </div>
+        <div class="seg" id="stageSwitch">
+          <button type="button" data-view="style" class="active">ตัวอย่างสไตล์</button>
+          <button type="button" data-view="video">คลิปผลลัพธ์</button>
+        </div>
       </div>
-      <input type="text" id="wordRangeCustom" placeholder="หรือกำหนดเอง เช่น 4-6" style="margin-top:8px;">
 
-      <label class="field-label" style="margin-top:12px;">🗣️ คำศัพท์เฉพาะ/ชื่อตัวละคร (ไม่บังคับ)</label>
-      <input type="text" id="whisperHintTerms" placeholder="เช่น ชื่อตัวละคร, ศัพท์เฉพาะทาง — คั่นด้วยจุลภาค">
-      <p class="wf-hint">ช่วย Whisper ถอดเสียงคำพวกนี้ได้แม่นขึ้นเวลาฟังไม่ชัด (เช่นชื่อเฉพาะ/ศัพท์แปลก) — เว้นว่างได้ถ้าไม่มี ใช้กับทุกครั้งที่เรียก Whisper ทั้งขั้น "แยกบรรทัดด้วย AI" และขั้น "สร้างคลิป"</p>
-
-      <button type="button" class="expand-btn" id="autoSplitBtn" style="margin-top:14px;width:100%;padding:11px;">🪄 แยกบรรทัดด้วย AI (ใช้ไฟล์เสียงจากข้อ 1)</button>
-      <p class="wf-hint">ขั้นตอน: จับเวลาเสียงจริงด้วย Whisper ก่อน แล้วส่งสคริปต์ดิบ + จังหวะเสียงจริง (ไม่ใช่ไฟล์เสียงดิบ) ให้ Gemini ช่วยตัดบรรทัด — ผลลัพธ์จะไปเติมในช่องด้านล่าง ตรวจ/แก้ได้ก่อนกด "สร้างคลิป" เสมอ (ขั้นตอนนี้แยกจากขั้น "สร้างคลิป" คนละรอบ Whisper กัน ไม่กระทบกัน)</p>
-      <div class="status" id="autoSplitStatusRow"><div class="spinner"></div><span id="autoSplitStatusText">กำลังทำงาน...</span></div>
-      <p class="wf-hint" id="autoSplitStats" style="display:none;"></p>
-      <div class="error-box" id="autoSplitErrorBox"></div>
-    </div>
-
-    <label class="field-label" for="editedScript">วาง/พิมพ์สคริปต์ที่ตัดวรรคมาจากที่อื่นแล้ว ทีละบรรทัด — กด Enter เพื่อขึ้นบรรทัดใหม่</label>
-    <textarea id="editedScript" placeholder="พิมพ์หรือวางสคริปต์ทีละบรรทัด..."></textarea>
-  </div>
-
-  <div class="card">
-    <h2>3 · ปรับขนาดตัวอักษร &amp; เส้นขอบ (Stroke)</h2>
-    <div class="preview-wrap" id="stylePreviewWrap" style="aspect-ratio:auto;max-width:100%;">
-      <canvas id="stylePreviewCanvas" width="540" height="200" style="width:100%;height:auto;display:block;"></canvas>
-    </div>
-    <label class="field-label" style="margin-top:12px;">ขนาดตัวอักษร — <span id="fontSizeVal">74</span>px</label>
-    <div class="fine-slider-row">
-      <button type="button" class="fs-btn" id="fontSizeMinus" aria-label="ลดขนาดตัวอักษร">−</button>
-      <div class="fs-track-wrap" id="fontSizeTrackWrap">
-        <div class="fs-track"><div class="fs-fill" id="fontSizeFill"></div></div>
-        <div class="fs-thumb" id="fontSizeThumb"></div>
+      <div class="result-actions" id="resultCard">
+        <a class="dl-btn" id="dlVideo" download="green_screen_subtitle.mp4">⬇️ ดาวน์โหลดคลิป (.mp4 · 1080×1080)</a>
+        <a class="dl-btn secondary-dl" id="dlSrt" download="subtitle.srt">📄 ดาวน์โหลดไฟล์ .srt</a>
+        <p class="foot-note">นำ .mp4 เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปได้เลย</p>
       </div>
-      <button type="button" class="fs-btn" id="fontSizePlus" aria-label="เพิ่มขนาดตัวอักษร">+</button>
-    </div>
-    <label class="field-label" style="margin-top:16px;">ความหนาเส้นขอบ — <span id="strokeWidthVal">10</span>px</label>
-    <div class="fine-slider-row">
-      <button type="button" class="fs-btn" id="strokeWidthMinus" aria-label="ลดความหนาเส้นขอบ">−</button>
-      <div class="fs-track-wrap" id="strokeWidthTrackWrap">
-        <div class="fs-track"><div class="fs-fill" id="strokeWidthFill"></div></div>
-        <div class="fs-thumb" id="strokeWidthThumb"></div>
-      </div>
-      <button type="button" class="fs-btn" id="strokeWidthPlus" aria-label="เพิ่มความหนาเส้นขอบ">+</button>
-    </div>
-    <label class="field-label" style="margin-top:16px;">ปรับจังหวะซับให้ตรงเสียง — <span id="syncOffsetVal">0</span> ms<span style="color:var(--text-dim);"> (ลบ = ซับขึ้นเร็วขึ้น, บวก = ซับขึ้นช้าลง)</span></label>
-    <div class="fine-slider-row">
-      <button type="button" class="fs-btn" id="syncOffsetMinus" aria-label="ให้ซับขึ้นเร็วขึ้น">−</button>
-      <div class="fs-track-wrap" id="syncOffsetTrackWrap">
-        <div class="fs-track"><div class="fs-fill" id="syncOffsetFill"></div></div>
-        <div class="fs-thumb" id="syncOffsetThumb"></div>
-      </div>
-      <button type="button" class="fs-btn" id="syncOffsetPlus" aria-label="ให้ซับขึ้นช้าลง">+</button>
-    </div>
-    <p class="wf-hint">ตัวนี้ใช้แก้กรณีซับทั้งคลิปเพี้ยนไปทางเดียวกันหมด (เร็ว/ช้าเท่าๆ กันทุกบรรทัด) เท่านั้น ถ้าซับตรงบ้างไม่ตรงบ้างสลับกันไปในคลิปเดียว ให้ปล่อยตัวนี้ไว้ที่ 0 — ระบบจะจับจุดตัดจากคลื่นเสียงจริงให้อัตโนมัติตอนกดสร้างคลิป</p>
-  </div>
 
-  <div class="card">
-    <button class="primary" id="startBtn">4. ยืนยันวรรค &amp; สร้างคลิปจอเขียว</button>
-    <div class="status" id="statusRow"><div class="spinner"></div><span id="statusText">กำลังทำงาน...</span></div>
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-pct" id="progressPct">0%</div>
-    </div>
-    <div class="step-list" id="stepList">
-      <div id="step1" class="pending">กำลังจับเวลาเสียงจริง (Whisper)</div>
-      <div id="step2" class="pending">กำลังจับคู่บรรทัดกับเสียง (Word Matching)</div>
-      <div id="step3" class="pending">กำลังเรนเดอร์คลิปจอเขียว</div>
-    </div>
-    <div class="error-box" id="errorBox"></div>
-  </div>
+      <div class="card">
+        <h2>สไตล์ตัวอักษร</h2>
+        <label class="field-label">ขนาดตัวอักษร — <span id="fontSizeVal">74</span>px</label>
+        <div class="fine-slider-row">
+          <button type="button" class="fs-btn" id="fontSizeMinus" aria-label="ลดขนาดตัวอักษร">−</button>
+          <div class="fs-track-wrap" id="fontSizeTrackWrap">
+            <div class="fs-track"><div class="fs-fill" id="fontSizeFill"></div></div>
+            <div class="fs-thumb" id="fontSizeThumb"></div>
+          </div>
+          <button type="button" class="fs-btn" id="fontSizePlus" aria-label="เพิ่มขนาดตัวอักษร">+</button>
+        </div>
+        <label class="field-label gap">ความหนาเส้นขอบ — <span id="strokeWidthVal">10</span>px</label>
+        <div class="fine-slider-row">
+          <button type="button" class="fs-btn" id="strokeWidthMinus" aria-label="ลดความหนาเส้นขอบ">−</button>
+          <div class="fs-track-wrap" id="strokeWidthTrackWrap">
+            <div class="fs-track"><div class="fs-fill" id="strokeWidthFill"></div></div>
+            <div class="fs-thumb" id="strokeWidthThumb"></div>
+          </div>
+          <button type="button" class="fs-btn" id="strokeWidthPlus" aria-label="เพิ่มความหนาเส้นขอบ">+</button>
+        </div>
+        <label class="field-label gap">ปรับจังหวะซับ — <span id="syncOffsetVal">0</span> ms <span class="dim">(ลบ = ขึ้นเร็วขึ้น, บวก = ช้าลง)</span></label>
+        <div class="fine-slider-row">
+          <button type="button" class="fs-btn" id="syncOffsetMinus" aria-label="ให้ซับขึ้นเร็วขึ้น">−</button>
+          <div class="fs-track-wrap" id="syncOffsetTrackWrap">
+            <div class="fs-track"><div class="fs-fill" id="syncOffsetFill"></div></div>
+            <div class="fs-thumb" id="syncOffsetThumb"></div>
+          </div>
+          <button type="button" class="fs-btn" id="syncOffsetPlus" aria-label="ให้ซับขึ้นช้าลง">+</button>
+        </div>
+        <p class="wf-hint">ใช้แก้เฉพาะกรณีซับทั้งคลิปเพี้ยนไปทางเดียวกันหมด ถ้าตรงบ้างไม่ตรงบ้างให้ปล่อยไว้ที่ 0 — ระบบจับจุดตัดจากคลื่นเสียงจริงให้อัตโนมัติตอนสร้างคลิป</p>
+      </div>
 
-  <div class="card result-card" id="resultCard">
-    <h2>ผลลัพธ์ <span class="badge">1080×1080 · mp4</span></h2>
-    <div class="preview-wrap"><video id="previewVideo" controls playsinline></video></div>
-    <a class="dl-btn" id="dlVideo" download="green_screen_subtitle.mp4">⬇️ ดาวน์โหลดคลิปซับจอเขียว (.mp4)</a>
-    <a class="dl-btn secondary-dl" id="dlSrt" download="subtitle.srt">📄 ดาวน์โหลดไฟล์ .srt</a>
-    <p class="foot-note">นำไฟล์ .mp4 เข้า CapCut แล้วใช้ Chroma Key ดูดสีเขียว #00FF00 ออก จากนั้นวางทับคลิปอนิเมะได้เลย</p>
-  </div>
+      <button type="button" class="primary" id="startBtn">🎬 ยืนยันวรรค &amp; สร้างคลิปจอเขียว</button>
+      <div class="error-box" id="errorBox"></div>
+    </section>
+
+  </main>
+
+  <footer class="wizard-nav">
+    <button type="button" class="nav-back" id="backBtn" disabled>← ย้อนกลับ</button>
+    <button type="button" class="nav-next" id="nextBtn">ถัดไป →</button>
+  </footer>
 
   <canvas id="renderCanvas" class="hidden-canvas" width="1080" height="1080"></canvas>
-
 </div>
 
 <!-- ---------- settings modal (API Keys) ---------- -->
@@ -209,7 +234,7 @@
 <!-- ---------- fullscreen script editor ---------- -->
 <div class="fullscreen-editor" id="fullscreenEditor">
   <div class="fe-head">
-    <h2>2 · แก้ไขสคริปต์ (เต็มจอ)</h2>
+    <h2>แก้ไขสคริปต์ (เต็มจอ)</h2>
   </div>
   <textarea id="fullscreenTextarea" placeholder="พิมพ์/แก้ไขบรรทัดซับที่นี่..."></textarea>
   <button type="button" class="fe-done" id="fullscreenDoneBtn">✓ บันทึกและเสร็จสิ้น</button>
