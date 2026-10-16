@@ -1,4 +1,4 @@
-import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.5';
+import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.6';
 
 // ===== PWA: service worker registration (moved from inline <script> in index.html) =====
   if ('serviceWorker' in navigator) {
@@ -739,7 +739,9 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     return Math.max(ZOOM_MIN, Math.min(maxZoomAllowed(), z));
   }
   function updateZoomLabel(){
-    wfZoomLabel.textContent = zoom <= 1.02 ? 'พอดีจอ' : Math.round(zoom * 100) + '%';
+    if (zoom <= 1.02){ wfZoomLabel.textContent = 'พอดีจอ'; return; }
+    const secs = virtualDuration() / zoom;
+    wfZoomLabel.textContent = 'เห็น ' + (secs < 10 ? secs.toFixed(1) : Math.round(secs)) + ' วินาที';
   }
   function layoutWaveform(){
     if (!audioBuffer) return;
@@ -769,7 +771,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     const dpr = window.devicePixelRatio || 1;
     const rect = waveformCanvas.getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width * dpr));
-    const h = Math.max(1, Math.round(110 * dpr));
+    const h = Math.max(1, Math.round(140 * dpr));
     if (waveformCanvas.width !== w || waveformCanvas.height !== h){
       waveformCanvas.width = w;
       waveformCanvas.height = h;
@@ -1580,7 +1582,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   // muxed into an mp4. A slow device just takes longer — the output timing
   // is identical no matter how the render actually went, every time.
   // =========================================================
-  const MEDIABUNNY_URL = './vendor/mediabunny.min.js?v=1.5'; // mediabunny 1.54.0 เก็บไว้ในโปรเจกต์ (ไม่ต้องพึ่งอินเทอร์เน็ตตอนเรนเดอร์)
+  const MEDIABUNNY_URL = './vendor/mediabunny.min.js?v=1.6'; // mediabunny 1.54.0 เก็บไว้ในโปรเจกต์ (ไม่ต้องพึ่งอินเทอร์เน็ตตอนเรนเดอร์)
   let mediabunnyModulePromise = null;
   function loadMediabunny(){
     if (!mediabunnyModulePromise) mediabunnyModulePromise = import(MEDIABUNNY_URL);
