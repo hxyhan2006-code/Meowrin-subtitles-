@@ -24,7 +24,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   const BOTTOM_MARGIN_RATIO = 0.10;
   const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
   const GROQ_MODEL = "whisper-large-v3";
-  const GEMINI_MODEL = "gemini-3.1-flash-lite"; // NOTE: Google renames/retires Gemini models often — if this
+  const GEMINI_MODEL = "gemini-3.8-flash"; // NOTE: Google renames/retires Gemini models often — if this
                                                   // starts 404-ing again, the error message itself usually names
                                                   // the replacement model to put here (e.g. "gemini-3.6-flash").
   const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -520,7 +520,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     let fileForPipeline = f;
     let extractedBuffer = null;
     if (isVideoFile(f)){
-      fileInfo.innerHTML = '🎬 กำลังดึงเสียงออกจากไฟล์วิดีโอ...';
+      fileInfo.innerHTML = 'กำลังดึงเสียงออกจากไฟล์วิดีโอ...';
       fileInfo.classList.add('show');
       try {
         extractedBuffer = await extractAudioFromVideo(f);
@@ -1066,7 +1066,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       return;
     }
     cutListEl.innerHTML = cutRegions.map((r, i) =>
-      `<div class="cut-item"><span class="cut-range">✂️ ${fmtTime(r.start)}–${fmtTime(r.end)} (ตัดออก ${fmtTime(r.end - r.start)})</span><button type="button" data-idx="${i}" aria-label="ลบช่วงตัดนี้">✕</button></div>`
+      `<div class="cut-item"><span class="cut-range">${fmtTime(r.start)}–${fmtTime(r.end)} (ตัดออก ${fmtTime(r.end - r.start)})</span><button type="button" data-idx="${i}" aria-label="ลบช่วงตัดนี้">ยกเลิก</button></div>`
     ).join('');
     cutListEl.querySelectorAll('button[data-idx]').forEach(btn => {
       btn.addEventListener('click', () => removeCutRegion(Number(btn.dataset.idx)));
@@ -1078,7 +1078,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     loopSelection = false; // the main ▶ button always plays the whole clip forward
     if (audioEl.paused) audioEl.play(); else audioEl.pause();
   });
-  audioEl.addEventListener('play', () => { wfPlayBtn.textContent = '⏸'; startWfRaf(); });
+  audioEl.addEventListener('play', () => { wfPlayBtn.textContent = '❚❚'; startWfRaf(); });
   audioEl.addEventListener('pause', () => { wfPlayBtn.textContent = '▶'; stopWfRaf(); });
   audioEl.addEventListener('ended', () => { wfPlayBtn.textContent = '▶'; loopSelection = false; stopWfRaf(); updatePlayheadAndTime(); });
 
@@ -1457,7 +1457,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   function finishAutoSplitProgress(){
     stopAutoSplitCreep();
     asProgress = 100; renderAutoSplitProgress();
-    showAutoSplitStatus('เสร็จแล้ว ✓');
+    showAutoSplitStatus('เสร็จแล้ว');
     asHideTimer = setTimeout(() => {
       autoSplitProgressWrap.classList.add('fading');
       hideAutoSplitStatus();
@@ -1502,8 +1502,8 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     const groqKey = apiKeyGroqInput.value.trim();
     const raw = rawScriptInput.value.trim();
 
-    if (!groqKey){ showAutoSplitError('กรอก Groq API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
-    if (!geminiKey){ showAutoSplitError('กรอก Gemini API Key ก่อน (ปุ่ม ⚙️ API Keys)'); return; }
+    if (!groqKey){ showAutoSplitError('กรอก Groq API Key ก่อน (ปุ่ม API Keys)'); return; }
+    if (!geminiKey){ showAutoSplitError('กรอก Gemini API Key ก่อน (ปุ่ม API Keys)'); return; }
     if (!selectedFile){ showAutoSplitError('เลือกไฟล์เสียงหรือวิดีโอก่อน (แท็บ "เสียง & ตัดต่อ")'); return; }
     if (!SCRIPT_FILL_MODE && !raw){ showAutoSplitError('วางสคริปต์ดิบในกล่อง 1 ก่อน (หรือเปิด "ตั้งค่า AI เพิ่มเติม" แล้วสลับเป็นโหมด "เติมจากเสียงด้วย" ถ้าไม่มีสคริปต์)'); return; }
 
@@ -1650,7 +1650,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     // literal burned-in subtitle text.
     const lines = editedScript.value.split('\n').map(l => l.trim().replace(/^\[AI\]\s*/, '')).filter(l => l.length > 0);
 
-    if (!groqKey){ showError('กรอก Groq API Key ก่อน (กดปุ่ม ⚙️ API Keys ด้านบน)'); return; }
+    if (!groqKey){ showError('กรอก Groq API Key ก่อน (กดปุ่ม API Keys ด้านบน)'); return; }
     if (!selectedFile){ showError('เลือกไฟล์เสียงพากย์ก่อน (แท็บ "เสียง & ตัดต่อ")'); return; }
     if (lines.length === 0){ showError('ใส่สคริปต์ก่อน (แท็บ "สคริปต์" อย่างน้อย 1 บรรทัด)'); return; }
 
