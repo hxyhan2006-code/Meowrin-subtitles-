@@ -78,6 +78,7 @@ button.primary:disabled{background:var(--accent-dim);color:#c7d8ce;cursor:not-al
 .script-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .chip-btn{flex:1 1 0;min-width:64px;min-height:var(--tap);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;font-size:14px;font-weight:700;padding:6px;cursor:pointer;text-align:center;}
+.chip-btn small{display:block;font-size:11px;font-weight:400;color:var(--muted);}
 .chip-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(57,217,138,.10);}
 
 /* ---------- script tab: two boxes + AI action between them ---------- */
@@ -158,7 +159,7 @@ canvas.hidden-canvas{display:none;}
 /* ---------- settings modal ---------- */
 .modal-backdrop{display:none;position:fixed;inset:0;z-index:9998;background:rgba(6,10,8,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;}
 .modal-backdrop.show{display:flex;}
-.modal-box{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;}
+.modal-box{width:100%;max-width:420px;max-height:90vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;}
 .modal-box h2{font-size:16px;font-weight:700;margin:0 0 14px;}
 .modal-box .two-col{margin-bottom:16px;}
 

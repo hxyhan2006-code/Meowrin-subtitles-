@@ -1,6 +1,6 @@
 // media.js — ถอดรหัส/ตัด/แปลงเสียง และโหลดไลบรารี mediabunny
 
-const MEDIABUNNY_URL = './vendor/mediabunny.min.js?v=1.7'; // mediabunny 1.54.0 เก็บไว้ในโปรเจกต์ (ไม่ต้องพึ่งอินเทอร์เน็ตตอนเรนเดอร์)
+const MEDIABUNNY_URL = './vendor/mediabunny.min.js?v=1.8'; // mediabunny 1.54.0 เก็บไว้ในโปรเจกต์ (ไม่ต้องพึ่งอินเทอร์เน็ตตอนเรนเดอร์)
 let mediabunnyModulePromise = null;
 export function loadMediabunny(){
   if (!mediabunnyModulePromise) mediabunnyModulePromise = import(MEDIABUNNY_URL);

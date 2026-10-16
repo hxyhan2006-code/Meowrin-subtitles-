@@ -2,10 +2,15 @@
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
 const GROQ_MODEL = "whisper-large-v3";
-const GEMINI_MODEL = "gemini-3.8-flash"; // NOTE: Google renames/retires Gemini models often — if this
-                                                // starts 404-ing again, the error message itself usually names
-                                                // the replacement model to put here (e.g. "gemini-3.6-flash").
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// โมเดล Gemini ที่ให้เลือกในหน้าตั้งค่า เรียงจากฉลาดสุดไปประหยัดสุด (ตัวแรกคือค่าเริ่มต้น)
+// NOTE: Google เปลี่ยนชื่อ/เลิกใช้โมเดลบ่อย — ถ้าตัวไหนขึ้น 404 ข้อความ error มักบอกชื่อตัวแทน ให้แก้ id ที่นี่ที่เดียว
+export const GEMINI_MODELS = [
+  { id: 'gemini-3.8-flash', label: 'ฉลาดสุด', name: '3.8 Flash' },
+  { id: 'gemini-3.6-flash', label: 'สมดุล', name: '3.6 Flash' },
+  { id: 'gemini-3.5-flash-lite', label: 'ประหยัด', name: '3.5 Flash-Lite' },
+];
+export const DEFAULT_GEMINI_MODEL = GEMINI_MODELS[0].id;
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const PAUSE_MARK_THRESHOLD_SEC = 0.25; // gap between two whisper words above this is marked [PAUSE] for Gemini
 
 // =========================================================
@@ -129,9 +134,10 @@ export function buildGeminiSplitPrompt(rawScript, transcriptText, fillMode, word
   ].join('\n');
 }
 
-export async function callGeminiSplit(apiKey, rawScript, transcriptText, fillMode, wordMin, wordMax){
+export async function callGeminiSplit(apiKey, rawScript, transcriptText, fillMode, wordMin, wordMax, model){
   const prompt = buildGeminiSplitPrompt(rawScript, transcriptText, fillMode, wordMin, wordMax);
-  const res = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
+  const modelId = GEMINI_MODELS.some(m => m.id === model) ? model : DEFAULT_GEMINI_MODEL;
+  const res = await fetch(`${GEMINI_API_BASE}${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

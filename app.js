@@ -1,8 +1,8 @@
-import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.7';
-import { buildSrt } from './srt.js?v=1.7';
-import { callGroqWhisper, buildTranscriptForGemini, callGeminiSplit } from './ai.js?v=1.7';
-import { loadMediabunny, decodeAudioFile, isVideoFile, extractAudioFromVideo, computePeaks, buildTrimmedAudioBuffer, audioBufferToWavBlob } from './media.js?v=1.7';
-import { CANVAS_W, FONT_FAMILY, BOTTOM_MARGIN_RATIO, renderVideo } from './render.js?v=1.7';
+import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.8';
+import { buildSrt } from './srt.js?v=1.8';
+import { callGroqWhisper, buildTranscriptForGemini, callGeminiSplit, GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from './ai.js?v=1.8';
+import { loadMediabunny, decodeAudioFile, isVideoFile, extractAudioFromVideo, computePeaks, buildTrimmedAudioBuffer, audioBufferToWavBlob } from './media.js?v=1.8';
+import { CANVAS_W, FONT_FAMILY, BOTTOM_MARGIN_RATIO, renderVideo } from './render.js?v=1.8';
 
 // ===== PWA: service worker registration (moved from inline <script> in index.html) =====
   if ('serviceWorker' in navigator) {
@@ -266,6 +266,25 @@ import { CANVAS_W, FONT_FAMILY, BOTTOM_MARGIN_RATIO, renderVideo } from './rende
     setScriptMode(saved === 'fill' ? 'fill' : 'strict', false);
   })();
   scriptModeChips.forEach(btn => btn.addEventListener('click', () => setScriptMode(btn.dataset.mode, true)));
+
+  // ---------- Gemini model picker (in the API settings modal) ----------
+  let GEMINI_MODEL_ID = DEFAULT_GEMINI_MODEL;
+  const geminiModelChips = document.getElementById('geminiModelChips');
+  GEMINI_MODELS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip-btn';
+    btn.dataset.model = m.id;
+    btn.innerHTML = `${m.label}<small>${m.name}</small>`;
+    btn.addEventListener('click', () => setGeminiModel(m.id, true));
+    geminiModelChips.appendChild(btn);
+  });
+  function setGeminiModel(id, persist){
+    GEMINI_MODEL_ID = GEMINI_MODELS.some(m => m.id === id) ? id : DEFAULT_GEMINI_MODEL;
+    geminiModelChips.querySelectorAll('.chip-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.model === GEMINI_MODEL_ID));
+    if (persist) localStorage.setItem('gs_gemini_model', GEMINI_MODEL_ID);
+  }
+  setGeminiModel(localStorage.getItem('gs_gemini_model'), false);
 
   // ---------- settings modal (API Key) ----------
   function openSettingsModal(){
@@ -1194,7 +1213,7 @@ import { CANVAS_W, FONT_FAMILY, BOTTOM_MARGIN_RATIO, renderVideo } from './rende
       autoSplitProgressTo(85); // Gemini phase
       showAutoSplitStatus('กำลังแยกบรรทัดด้วย Gemini ตามจังหวะเสียงจริง...');
       const transcriptText = buildTranscriptForGemini(whisperWords);
-      const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE, WORD_RANGE_MIN, WORD_RANGE_MAX);
+      const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE, WORD_RANGE_MIN, WORD_RANGE_MAX, GEMINI_MODEL_ID);
 
       editedScript.value = splitLines;
       updateLineCount();
