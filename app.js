@@ -1,4 +1,4 @@
-import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js';
+import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.3';
 
 // ===== PWA: service worker registration (moved from inline <script> in index.html) =====
   if ('serviceWorker' in navigator) {
