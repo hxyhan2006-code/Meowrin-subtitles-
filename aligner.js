@@ -19,6 +19,15 @@ const DEAD_AIR_GAP = 0.12;         // ช่องว่าง > ค่านี
 const MIN_DISPLAY = 0.28;          // เวลาแสดงผลขั้นต่ำต่อบรรทัด (วินาที)
 const MAX_SEC_PER_CHAR = 0.12;     // เพดานเวลาต่อตัวอักษร ตอนต้องเดาเวลาโดยไม่มีคำ Whisper รองรับ
 
+const ENV_HOP = 0.005;             // ความละเอียดซองพลังงานเสียง (วินาที)
+const ENV_WIN = 0.01;              // ความกว้างหน้าต่างวัดพลังงานต่อเฟรม (วินาที)
+const ONSET_BACK = 0.15;           // ค้นหาจุดเสียงเริ่มย้อนหลังจากเวลาของ Whisper ได้ไกลสุด (วินาที)
+const ONSET_FWD = 0.12;            // ค้นหาไปข้างหน้าได้ไกลสุด (วินาที)
+const ONSET_PREROLL = 0.01;        // เผื่อขึ้นซับก่อนเสียงเริ่มเล็กน้อย กันหัวคำแหว่ง
+const ONSET_LEVEL = 0.15;          // เกณฑ์ "เสียงดังแล้ว" = พื้นเสียง + สัดส่วนนี้ของช่วงพื้นเสียง..ระดับเสียงพูด
+const ONSET_MIN_CONTRAST = 4;      // ระดับเสียงพูดต้องดังกว่าพื้นเสียงอย่างน้อยกี่เท่า ไม่งั้นไม่ขยับ
+const ONSET_MIN_KEEP = 0.1;        // หลังขยับต้องเหลือเวลาแสดงผลอย่างน้อยเท่านี้ (วินาที)
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
 /* ------------------------------------------------------------------ */
@@ -324,11 +333,91 @@ export function alignLinesToWords(lines, whisperWords) {
 /* refineSegmentBoundariesWithEnergy                                    */
 /* ------------------------------------------------------------------ */
 
+/** ซองพลังงานเสียง (RMS ทุก ENV_HOP วินาที) จาก AudioBuffer: เฉลี่ยทุกแชนเนลเป็นโมโน */
+function energyEnvelope(audioBuffer) {
+  const sr = audioBuffer.sampleRate;
+  const hop = Math.max(1, Math.round(sr * ENV_HOP));
+  const win = Math.max(1, Math.round(sr * ENV_WIN));
+  const chCount = audioBuffer.numberOfChannels;
+  const chans = [];
+  for (let c = 0; c < chCount; c++) chans.push(audioBuffer.getChannelData(c));
+  const total = audioBuffer.length;
+  const frames = Math.max(0, Math.floor((total - win) / hop) + 1);
+  const env = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) {
+    const from = f * hop;
+    let sum = 0;
+    for (let i = from; i < from + win; i++) {
+      let m = 0;
+      for (let c = 0; c < chCount; c++) m += chans[c][i];
+      m /= chCount;
+      sum += m * m;
+    }
+    env[f] = Math.sqrt(sum / win);
+  }
+  return { env, hopSec: hop / sr };
+}
+
 /**
- * Pass-through แบบปลอดภัย: คืน segments เดิมโดยไม่แก้ไข
- * เพื่อไม่ให้การวิเคราะห์คลื่นเสียงไปตัดหางเสียงคำพูดทิ้ง
+ * หาจุดที่เสียงเริ่มดังขึ้นจริงใกล้เวลา t (ภายใน [lo, hi])
+ * - เสียงเงียบ ณ t  -> เดินไปข้างหน้าหาเฟรมแรกที่เกินเกณฑ์
+ * - เสียงดังอยู่แล้ว ณ t -> เดินถอยหลังหาจุดที่เสียงเพิ่งขึ้นมา
+ * ถ้าเดินถอยจนสุดช่วงแล้วเสียงยังดังต่อเนื่อง (ไม่มีช่องเงียบให้ยึด) หรือไม่เจอเลย -> คืน null (ไม่ขยับ)
+ */
+function findOnset(env, hopSec, t, lo, hi, thr) {
+  const last = env.length - 1;
+  if (last < 0) return null;
+  const at = Math.min(last, Math.max(0, Math.round(t / hopSec)));
+  const iLo = Math.max(0, Math.floor(lo / hopSec));
+  const iHi = Math.min(last, Math.ceil(hi / hopSec));
+  if (env[at] <= thr) {
+    for (let i = at; i <= iHi; i++) {
+      if (env[i] > thr) return i * hopSec;
+    }
+    return null;
+  }
+  let j = at;
+  while (j > iLo && env[j - 1] > thr) j--;
+  if (j > iLo) return j * hopSec;
+  if (iLo === 0 || env[iLo - 1] <= thr) return iLo * hopSec;
+  return null;
+}
+
+/**
+ * ขยับขอบ "ขึ้นซับ" ของบรรทัดที่จับคู่ได้ให้ชนจุดที่เสียงเริ่มดังจริง (ค้นแคบๆ รอบเวลาของ Whisper)
+ * - ไม่แตะขอบ "ซับหาย" เลย (กันตัดหางเสียงคำพูด)
+ * - ไม่ขยับถ้าคลิปไม่มีช่วงเงียบชัดพอ (เช่น มีเพลง/เสียงรบกวนดัง) หรือไม่เจอจุดเริ่มชัดเจน
+ * - ไม่ให้ขอบขึ้นซับล้ำเข้าไปทับบรรทัดก่อนหน้า และเหลือเวลาแสดงผลอย่างน้อย ONSET_MIN_KEEP
  */
 export function refineSegmentBoundariesWithEnergy(segments, audioBuffer) {
-  void audioBuffer;
-  return segments;
+  if (!Array.isArray(segments) || segments.length === 0) return segments;
+  if (!audioBuffer || !audioBuffer.length || !audioBuffer.sampleRate) return segments;
+
+  const { env, hopSec } = energyEnvelope(audioBuffer);
+  if (env.length === 0) return segments;
+
+  const sorted = Float32Array.from(env).sort();
+  const floor = Math.max(sorted[Math.floor(sorted.length * 0.1)], 1e-5);
+  const peak = sorted[Math.floor(sorted.length * 0.9)];
+  if (peak < floor * ONSET_MIN_CONTRAST) return segments; // ไม่มีช่วงเงียบให้ยึด -> ไม่แตะ
+  const thr = floor + ONSET_LEVEL * (peak - floor);
+
+  const out = segments.map((s) => ({ ...s }));
+  let prevEnd = 0;
+  for (const seg of out) {
+    if (seg.start === null || seg.end === null) continue;
+    if (seg.matched) {
+      const lo = Math.min(seg.start, Math.max(seg.start - ONSET_BACK, prevEnd));
+      const hi = Math.min(seg.start + ONSET_FWD, seg.end - ONSET_MIN_KEEP);
+      if (hi >= lo) {
+        const onset = findOnset(env, hopSec, seg.start, lo, hi, thr);
+        if (onset !== null) {
+          const ns = Math.max(onset - ONSET_PREROLL, prevEnd, 0);
+          if (ns <= seg.end - ONSET_MIN_KEEP) seg.start = round3(ns);
+        }
+      }
+    }
+    prevEnd = Math.max(prevEnd, seg.end);
+  }
+  return out;
 }
