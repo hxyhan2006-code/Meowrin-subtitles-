@@ -21,7 +21,9 @@ button{font-family:inherit;color:var(--text);touch-action:manipulation;}
 .app{min-height:100vh;min-height:100dvh;max-width:560px;margin:0 auto;display:flex;flex-direction:column;}
 .top-container{flex:0 0 auto;position:sticky;top:0;z-index:100;background:var(--bg);} /* solid bg: nothing shows through while content scrolls behind */
 .topbar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 16px 8px;}
+.topbar-title{min-width:0;}
 .topbar h1{font-size:17px;font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.app-version{display:block;font-size:11px;line-height:1.2;color:var(--muted);}
 .settings-btn{flex:0 0 auto;min-height:40px;background:var(--surface);border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:500;padding:0 12px;cursor:pointer;white-space:nowrap;}
 .settings-btn:active{border-color:var(--accent-dim);}
 
