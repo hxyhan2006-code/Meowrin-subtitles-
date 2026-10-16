@@ -1,5 +1,5 @@
 // รันด้วย: node aligner.energy.test.mjs
-// ทดสอบการขยับขอบ "ขึ้นซับ" ตามคลื่นเสียง ด้วยเสียงจำลอง (ยังไม่ใช่คลิปจริง)
+// ทดสอบการขยับขอบ "ขึ้นซับ" และ "ซับหาย" ตามคลื่นเสียง ด้วยเสียงจำลอง (ยังไม่ใช่คลิปจริง)
 import assert from 'node:assert/strict';
 import { refineSegmentBoundariesWithEnergy } from './aligner.js';
 
@@ -43,10 +43,35 @@ test('Whisper บอกช้าไป (เสียงดังอยู่แ�
   near(s.start, 1.0);
 });
 
-test('ไม่แตะขอบ "ซับหาย" แม้เสียงจบก่อน/หลัง', () => {
-  const out = refineSegmentBoundariesWithEnergy([seg(0.95, 1.3), seg(2.0, 2.9)], buf);
-  assert.equal(out[0].end, 1.3);
-  assert.equal(out[1].end, 2.9);
+test('ซับหาย: ท้ายบรรทัดเงียบยาว (Whisper ยืดเวลาจบเกิน) -> ร่นมาที่จุดเสียงจบ + หางเล็กน้อย', () => {
+  const out = refineSegmentBoundariesWithEnergy([seg(1.0, 1.9), seg(2.0, 2.9)], buf);
+  near(out[0].end, 1.57, 0.04);
+  near(out[1].end, 2.67, 0.04);
+});
+
+test('ซับหาย: เสียงยังพูดอยู่ตรงขอบ หรือเงียบสั้นกว่าเกณฑ์ -> ไม่ขยับ', () => {
+  const out = refineSegmentBoundariesWithEnergy([seg(1.0, 1.45), seg(2.0, 2.68)], buf);
+  assert.equal(out[0].end, 1.45);
+  assert.equal(out[1].end, 2.68);
+});
+
+test('ซับหาย: ขอบหายไม่ยืดออก แม้เสียงยังพูดต่อหลังขอบ', () => {
+  const [s] = refineSegmentBoundariesWithEnergy([seg(1.0, 1.3)], buf);
+  assert.equal(s.end, 1.3);
+});
+
+test('ซับหาย: หางคำเบา ๆ ไม่ถูกตัดทิ้ง', () => {
+  const soft = makeBuffer(5, [[1.0, 1.4]], 0.002, 0.5);
+  const d = soft.getChannelData(0);
+  for (let i = Math.round(1.4 * SR); i < Math.round(1.55 * SR); i++) d[i] += Math.sin((2 * Math.PI * 330 * i) / SR) * 0.05;
+  const [s] = refineSegmentBoundariesWithEnergy([seg(1.0, 2.5)], soft);
+  assert.ok(s.end >= 1.55, `ตัดหางคำ: end=${s.end}`);
+  assert.ok(s.end < 1.75, `ไม่ร่นเลย: end=${s.end}`);
+});
+
+test('ซับหาย: บรรทัดที่ไม่มีเสียงเลย -> ไม่แตะขอบหาย', () => {
+  const [s] = refineSegmentBoundariesWithEnergy([seg(3.2, 4.0)], buf);
+  assert.equal(s.end, 4.0);
 });
 
 test('เสียงเริ่มไกลเกินช่วงค้นหา -> ไม่ขยับ', () => {

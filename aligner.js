@@ -27,6 +27,9 @@ const ONSET_PREROLL = 0.01;        // เผื่อขึ้นซับก่
 const ONSET_LEVEL = 0.15;          // เกณฑ์ "เสียงดังแล้ว" = พื้นเสียง + สัดส่วนนี้ของช่วงพื้นเสียง..ระดับเสียงพูด
 const ONSET_MIN_CONTRAST = 4;      // ระดับเสียงพูดต้องดังกว่าพื้นเสียงอย่างน้อยกี่เท่า ไม่งั้นไม่ขยับ
 const ONSET_MIN_KEEP = 0.1;        // หลังขยับต้องเหลือเวลาแสดงผลอย่างน้อยเท่านี้ (วินาที)
+const OFFSET_LEVEL = 0.05;         // เกณฑ์ "ยังมีเสียงพูด" ตอนหาขอบซับหาย ต่ำกว่า ONSET_LEVEL เพื่อให้หางคำเบาๆ นับเป็นเสียง
+const OFFSET_MIN_SILENCE = 0.12;   // ช่วงเงียบท้ายบรรทัดต้องยาวอย่างน้อยเท่านี้ ถึงจะตัดซับให้หาย (วินาที)
+const OFFSET_TAIL = 0.06;          // เผื่อให้ซับค้างต่อหลังเสียงจบเล็กน้อย กันตัดหางคำ (วินาที)
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
@@ -384,10 +387,12 @@ function findOnset(env, hopSec, t, lo, hi, thr) {
 }
 
 /**
- * ขยับขอบ "ขึ้นซับ" ของบรรทัดที่จับคู่ได้ให้ชนจุดที่เสียงเริ่มดังจริง (ค้นแคบๆ รอบเวลาของ Whisper)
- * - ไม่แตะขอบ "ซับหาย" เลย (กันตัดหางเสียงคำพูด)
- * - ไม่ขยับถ้าคลิปไม่มีช่วงเงียบชัดพอ (เช่น มีเพลง/เสียงรบกวนดัง) หรือไม่เจอจุดเริ่มชัดเจน
- * - ไม่ให้ขอบขึ้นซับล้ำเข้าไปทับบรรทัดก่อนหน้า และเหลือเวลาแสดงผลอย่างน้อย ONSET_MIN_KEEP
+ * ขยับขอบของบรรทัดที่จับคู่ได้ให้ตรงเสียงจริง
+ * - "ขึ้นซับ": ชนจุดที่เสียงเริ่มดัง (ค้นแคบๆ รอบเวลาของ Whisper) ขยับได้ทั้งเร็วขึ้นและช้าลง
+ * - "ซับหาย": ถ้าท้ายบรรทัดเป็นช่วงเงียบยาว >= OFFSET_MIN_SILENCE ให้ร่นขอบหายมาที่จุดเสียงจบ
+ *   (+ OFFSET_TAIL กันตัดหางคำ) ร่นเข้าอย่างเดียว ไม่ยืดออก
+ * - ไม่ขยับถ้าคลิปไม่มีช่วงเงียบชัดพอ (เช่น มีเพลง/เสียงรบกวนดัง) หรือไม่เจอจุดที่ชัดเจน
+ * - ขอบขึ้นซับไม่ล้ำทับบรรทัดก่อนหน้า และทุกบรรทัดเหลือเวลาแสดงผลอย่างน้อย MIN_DISPLAY/ONSET_MIN_KEEP
  */
 export function refineSegmentBoundariesWithEnergy(segments, audioBuffer) {
   if (!Array.isArray(segments) || segments.length === 0) return segments;
@@ -401,6 +406,7 @@ export function refineSegmentBoundariesWithEnergy(segments, audioBuffer) {
   const peak = sorted[Math.floor(sorted.length * 0.9)];
   if (peak < floor * ONSET_MIN_CONTRAST) return segments; // ไม่มีช่วงเงียบให้ยึด -> ไม่แตะ
   const thr = floor + ONSET_LEVEL * (peak - floor);
+  const endThr = floor + OFFSET_LEVEL * (peak - floor);
 
   const out = segments.map((s) => ({ ...s }));
   let prevEnd = 0;
@@ -415,6 +421,22 @@ export function refineSegmentBoundariesWithEnergy(segments, audioBuffer) {
           const ns = Math.max(onset - ONSET_PREROLL, prevEnd, 0);
           if (ns <= seg.end - ONSET_MIN_KEEP) seg.start = round3(ns);
         }
+      }
+    }
+    if (seg.matched) {
+      // ขอบซับหาย: เดินถอยจากท้ายบรรทัดหาเฟรมสุดท้ายที่ยังมีเสียง
+      const iEnd = Math.min(env.length - 1, Math.floor(seg.end / hopSec));
+      const iMin = Math.ceil((seg.start + ONSET_MIN_KEEP) / hopSec);
+      let lastVoiced = -1;
+      for (let i = iEnd; i >= iMin; i--) {
+        if (env[i] > endThr) {
+          lastVoiced = i;
+          break;
+        }
+      }
+      if (lastVoiced >= 0 && (iEnd - lastVoiced) * hopSec >= OFFSET_MIN_SILENCE) {
+        const ne = Math.max(lastVoiced * hopSec + ENV_WIN + OFFSET_TAIL, seg.start + MIN_DISPLAY);
+        if (ne < seg.end - 0.02) seg.end = round3(ne);
       }
     }
     prevEnd = Math.max(prevEnd, seg.end);
