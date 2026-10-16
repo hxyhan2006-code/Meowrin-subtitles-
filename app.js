@@ -1,4 +1,8 @@
-import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.6';
+import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.js?v=1.7';
+import { buildSrt } from './srt.js?v=1.7';
+import { callGroqWhisper, buildTranscriptForGemini, callGeminiSplit } from './ai.js?v=1.7';
+import { loadMediabunny, decodeAudioFile, isVideoFile, extractAudioFromVideo, computePeaks, buildTrimmedAudioBuffer, audioBufferToWavBlob } from './media.js?v=1.7';
+import { CANVAS_W, FONT_FAMILY, BOTTOM_MARGIN_RATIO, renderVideo } from './render.js?v=1.7';
 
 // ===== PWA: service worker registration (moved from inline <script> in index.html) =====
   if ('serviceWorker' in navigator) {
@@ -16,19 +20,9 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   }
 
   // ---------- constants ----------
-  const CANVAS_W = 1080, CANVAS_H = 1080;
   let FONT_PX = 74;   // user-adjustable via the style card (was a fixed const)
-  const FONT_FAMILY = "Kanit";
   let STROKE_PX = 10; // user-adjustable via the style card (was a fixed const)
   let SYNC_OFFSET_MS = 0; // user-adjustable manual correction for sub-vs-audio timing drift
-  const BOTTOM_MARGIN_RATIO = 0.10;
-  const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
-  const GROQ_MODEL = "whisper-large-v3";
-  const GEMINI_MODEL = "gemini-3.8-flash"; // NOTE: Google renames/retires Gemini models often — if this
-                                                  // starts 404-ing again, the error message itself usually names
-                                                  // the replacement model to put here (e.g. "gemini-3.6-flash").
-  const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-  const PAUSE_MARK_THRESHOLD_SEC = 0.25; // gap between two whisper words above this is marked [PAUSE] for Gemini
 
   // ---------- elements ----------
   const apiKeyGroqInput = document.getElementById('apiKeyGroq');
@@ -59,7 +53,6 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   const dlVideo = document.getElementById('dlVideo');
   const dlSrt = document.getElementById('dlSrt');
   const canvas = document.getElementById('renderCanvas');
-  const ctx = canvas.getContext('2d');
   const step1 = document.getElementById('step1');
   const step2 = document.getElementById('step2');
   const step3 = document.getElementById('step3');
@@ -562,99 +555,6 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     }
   });
 
-  // =========================================================
-  // WAVEFORM TRIM — let the user see, hear, and cut out parts of the
-  // audio (silence, coughs, mistakes) before it's sent to Whisper.
-  // =========================================================
-  async function decodeAudioFile(file){
-    const arrayBuf = await file.arrayBuffer();
-    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
-    try {
-      return await tmpCtx.decodeAudioData(arrayBuf);
-    } finally {
-      tmpCtx.close();
-    }
-  }
-
-  function isVideoFile(file){
-    return (file.type && file.type.startsWith('video/')) || /\.(mp4|mov|webm|mkv|m4v)$/i.test(file.name || '');
-  }
-
-  // Demux + decode a video file's audio track into a single AudioBuffer,
-  // using Mediabunny (already a dependency of this file for muxing the
-  // rendered output). Runs entirely client-side, no upload/transcoding
-  // service involved.
-  async function extractAudioFromVideo(file){
-    const { Input, ALL_FORMATS, BlobSource, AudioBufferSink } = await loadMediabunny();
-    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-    const audioTrack = await input.getPrimaryAudioTrack();
-    if (!audioTrack) throw new Error('ไม่พบแทร็กเสียงในไฟล์วิดีโอนี้');
-    const canDecode = await audioTrack.canDecode();
-    if (!canDecode) throw new Error('เบราว์เซอร์นี้ถอดรหัสแทร็กเสียงของไฟล์วิดีโอนี้ไม่ได้');
-
-    const sampleRate = await audioTrack.getSampleRate();
-    const numberOfChannels = await audioTrack.getNumberOfChannels();
-    const totalDuration = await input.computeDuration();
-    const totalSamples = Math.max(1, Math.ceil(totalDuration * sampleRate));
-
-    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let merged;
-    try {
-      merged = tmpCtx.createBuffer(numberOfChannels, totalSamples, sampleRate);
-    } finally {
-      tmpCtx.close();
-    }
-
-    const sink = new AudioBufferSink(audioTrack);
-    for await (const wrapped of sink.buffers()){
-      // some encoders write a few audio chunks with a negative presentation
-      // timestamp (priming/encoder-delay samples meant to be discarded before
-      // t=0) — only some source videos have this, which is why extraction
-      // worked for some clips and threw "offset is out of bounds" for others.
-      // Clip off the portion of the chunk that lands before time zero instead
-      // of writing at a negative index.
-      let offset = Math.round(wrapped.timestamp * sampleRate);
-      let srcStart = 0;
-      if (offset < 0){
-        srcStart = -offset;
-        offset = 0;
-      }
-      if (offset >= totalSamples) continue;
-      for (let c = 0; c < numberOfChannels; c++){
-        const full = wrapped.buffer.numberOfChannels > c ? wrapped.buffer.getChannelData(c) : wrapped.buffer.getChannelData(0);
-        if (srcStart >= full.length) continue;
-        const src = srcStart > 0 ? full.subarray(srcStart) : full;
-        const dest = merged.getChannelData(c);
-        const room = totalSamples - offset;
-        dest.set(room >= src.length ? src : src.subarray(0, room), offset);
-      }
-    }
-    return merged;
-  }
-
-  function computePeaks(buffer, numBuckets){
-    const channelCount = buffer.numberOfChannels;
-    const length = buffer.length;
-    const channelData = [];
-    for (let c = 0; c < channelCount; c++) channelData.push(buffer.getChannelData(c));
-    const samplesPerBucket = Math.max(1, Math.floor(length / numBuckets));
-    const peaks = new Float32Array(numBuckets * 2);
-    for (let i = 0; i < numBuckets; i++){
-      const start = i * samplesPerBucket;
-      const end = Math.min(length, start + samplesPerBucket);
-      let min = 0, max = 0;
-      for (let j = start; j < end; j++){
-        let v = 0;
-        for (let c = 0; c < channelCount; c++) v += channelData[c][j];
-        v /= channelCount;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      peaks[i*2] = min;
-      peaks[i*2+1] = max;
-    }
-    return peaks;
-  }
 
   function fmtTime(t){
     if (!isFinite(t) || t < 0) t = 0;
@@ -1120,78 +1020,6 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     autoScrollToPlayhead();
   }
 
-  // ---------- build the final audio actually sent to Whisper + used in the render ----------
-  function buildTrimmedAudioBuffer(buffer, regions){
-    const sampleRate = buffer.sampleRate;
-    const numChannels = buffer.numberOfChannels;
-    const totalSamples = buffer.length;
-    const cuts = regions
-      .map(r => ({
-        start: Math.max(0, Math.min(totalSamples, Math.round(r.start * sampleRate))),
-        end: Math.max(0, Math.min(totalSamples, Math.round(r.end * sampleRate)))
-      }))
-      .filter(r => r.end > r.start)
-      .sort((a, b) => a.start - b.start);
-
-    const kept = [];
-    let cursor = 0;
-    cuts.forEach(c => {
-      if (c.start > cursor) kept.push({ start: cursor, end: c.start });
-      cursor = Math.max(cursor, c.end);
-    });
-    if (cursor < totalSamples) kept.push({ start: cursor, end: totalSamples });
-
-    const newLength = Math.max(1, kept.reduce((sum, k) => sum + (k.end - k.start), 0));
-    const outBuffer = new AudioContext().createBuffer(numChannels, newLength, sampleRate);
-    for (let c = 0; c < numChannels; c++){
-      const srcData = buffer.getChannelData(c);
-      const dstData = outBuffer.getChannelData(c);
-      let writeOffset = 0;
-      kept.forEach(k => {
-        dstData.set(srcData.subarray(k.start, k.end), writeOffset);
-        writeOffset += (k.end - k.start);
-      });
-    }
-    return outBuffer;
-  }
-
-  function audioBufferToWavBlob(buffer){
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const numFrames = buffer.length;
-    const blockAlign = numChannels * 2;
-    const dataSize = numFrames * blockAlign;
-    const arrBuf = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(arrBuf);
-    function writeString(offset, str){
-      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    }
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    const channelData = [];
-    for (let c = 0; c < numChannels; c++) channelData.push(buffer.getChannelData(c));
-    let offset = 44;
-    for (let i = 0; i < numFrames; i++){
-      for (let c = 0; c < numChannels; c++){
-        const sample = Math.max(-1, Math.min(1, channelData[c][i]));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-    return new Blob([arrBuf], { type: 'audio/wav' });
-  }
 
   // Returns the File that should actually be sent to Whisper and used for
   // rendering: the original file untouched if no cuts were made, or a
@@ -1260,165 +1088,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
   function showError(msg, box = errorBox){ box.textContent = msg; box.classList.add('show'); }
   function hideError(box = errorBox){ box.classList.remove('show'); }
 
-  function srtTime(t){
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = Math.floor(t % 60);
-    const ms = Math.round((t - Math.floor(t)) * 1000);
-    const pad = (n, len) => String(n).padStart(len, '0');
-    return `${pad(h,2)}:${pad(m,2)}:${pad(s,2)},${pad(ms,3)}`;
-  }
 
-  function buildSrt(segments){
-    return segments.map((seg, i) =>
-      `${i + 1}\n${srtTime(seg.start)} --> ${srtTime(seg.end)}\n${seg.text}\n`
-    ).join('\n');
-  }
-
-  // =========================================================
-  // STEP A — Groq Whisper: real acoustic word timing
-  // =========================================================
-  async function callGroqWhisper(apiKey, audioFile, promptHint){
-    const form = new FormData();
-    form.append('file', audioFile);
-    form.append('model', GROQ_MODEL);
-    form.append('response_format', 'verbose_json');
-    form.append('timestamp_granularities[]', 'word');
-    form.append('language', 'th');
-    // temperature 0 = greedy decoding: ล็อกให้ Whisper ถอดเสียง/Timestamp เดิมทุกครั้งที่กดรัน (ไม่สุ่ม)
-    form.append('temperature', '0');
-    // optional: user-supplied specialized terms/character names, passed as
-    // Whisper's own "prompt" hint so it's more likely to get unusual words
-    // right on the first pass instead of mishearing them.
-    if (promptHint && promptHint.trim()) form.append('prompt', promptHint.trim());
-
-    const res = await fetch(GROQ_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: form
-    });
-
-    if (!res.ok){
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Groq Whisper API error (${res.status}): ${errText.slice(0, 300)}`);
-    }
-
-    const data = await res.json();
-    const words = data.words || [];
-    if (!Array.isArray(words) || words.length === 0){
-      throw new Error('Groq Whisper ไม่ส่งข้อมูล word-level timestamp กลับมา (ตรวจว่าเปิด timestamp_granularities[]=word)');
-    }
-    return words.map(w => ({
-      text: String(w.word || ''),
-      start: Number(w.start) || 0,
-      end: Number(w.end) || 0
-    }));
-  }
-
-  // =========================================================
-  // STEP A.5 — Gemini-assisted script line splitting (OPTIONAL, INDEPENDENT)
-  // Runs its own Groq Whisper call (separate from the one inside the main
-  // "start" flow below) so this feature can never alter timing/alignment
-  // for the actual render — it only ever writes plain text into
-  // `editedScript`, which the user can still review/edit before pressing
-  // "สร้างคลิป" as always. Nothing in STEP B/C or the render pipeline is
-  // touched by this section.
-  //
-  // Why Whisper runs FIRST and Gemini never hears the raw audio: a
-  // general multimodal model asked to listen to audio and place text at
-  // the right moment is estimating acoustic position from scratch — that
-  // is precisely the failure mode where a word from one sentence gets
-  // placed mid-way through another. A dedicated ASR model (Whisper) is
-  // built for exactly that job and already produces real word-level
-  // timestamps elsewhere in this file. So instead of asking Gemini to
-  // guess word position from raw sound, we hand it Whisper's already-
-  // measured word sequence (with real pause gaps marked inline) and only
-  // ask it to do the part it's actually good at: deciding readable
-  // line-break points given real pacing information. Gemini never invents
-  // wording — rule 4 in the prompt forces it to reproduce the user's own
-  // clean script text, using the transcript purely as a pacing reference.
-  // =========================================================
-
-  // Turn Whisper's word list into a plain-text pacing reference: words in
-  // spoken order, with a [PAUSE] marker inserted wherever the gap to the
-  // next word exceeds PAUSE_MARK_THRESHOLD_SEC. This is intentionally
-  // plain text (not JSON) — Gemini just needs to see rhythm, not compute
-  // over structured indices we'd otherwise have to trust it not to miscount.
-  function buildTranscriptForGemini(whisperWords){
-    let out = '';
-    for (let i = 0; i < whisperWords.length; i++){
-      out += whisperWords[i].text;
-      if (i < whisperWords.length - 1){
-        const gap = whisperWords[i + 1].start - whisperWords[i].end;
-        out += gap > PAUSE_MARK_THRESHOLD_SEC ? ' [PAUSE] ' : ' ';
-      }
-    }
-    return out.trim();
-  }
-
-  function buildGeminiSplitPrompt(rawScript, transcriptText, fillMode){
-    const rules = [
-      'กติกา:',
-      `1. เป้าหมายความยาวบรรทัด: ${WORD_RANGE_MIN}-${WORD_RANGE_MAX} คำต่อบรรทัด — บรรทัดส่วนใหญ่ (อย่างน้อย 90%) ต้องอยู่ในช่วงนี้จริงๆ ห้ามเกินเพดานบนหรือต่ำกว่าเพดานล่างเป็นประจำ อนุญาตให้ยืดหยุ่นได้เฉพาะกรณีจำเป็นจริงๆ เท่านั้น เช่น ชื่อเฉพาะที่แยกคำไม่ได้ หรือวลีติดกันแน่นจนแยกแล้วความหมายเสีย — ไม่ใช่ทุกครั้งที่รู้สึกว่า "น่าจะรวมกันดูดีกว่า"`,
-      '2. ห้ามปล่อยคำเชื่อม (เช่น เพราะ, และ, แล้ว, แต่, โผล่) ลอยเดี่ยวๆ บนบรรทัดของตัวเอง',
-      '3. ใช้ตำแหน่ง [PAUSE] ในทรานสคริปต์เป็นเบาะแสหลักของจุดตัด แต่ยังต้องพิจารณาเป้าหมายความยาวในข้อ 1 ประกอบด้วย — ถ้าช่วงยาวไม่มี [PAUSE] เลย ให้ใช้เป้าหมายความยาวเป็นตัวช่วยตัดสินใจแทน'
-    ];
-
-    if (fillMode){
-      rules.push(
-        '4. เทียบลำดับคำใน "สคริปต์ต้นฉบับ" กับ "ทรานสคริปต์เสียงจริง" ไปทีละช่วง — ช่วงไหนที่สคริปต์ต้นฉบับมีข้อความรองรับอยู่แล้ว ให้คงคำจากสคริปต์ต้นฉบับเป๊ะ 100% ห้ามเปลี่ยนแม้สะกดจะต่างจากทรานสคริปต์',
-        '5. ช่วงไหนที่ทรานสคริปต์เสียงจริงมีคำพูดอยู่ แต่สคริปต์ต้นฉบับไม่มีข้อความรองรับเลย (ช่องว่าง/ไม่ครอบคลุม) ให้ดึงคำจากทรานสคริปต์เสียงจริงมาใช้แทนสำหรับช่วงนั้น และขึ้นต้นทุกบรรทัดที่เนื้อหามาจากทรานสคริปต์ (ไม่ใช่จากสคริปต์ต้นฉบับ) ด้วยข้อความ "[AI] " ที่จุดเริ่มบรรทัด (ห้ามใช้สัญลักษณ์อีโมจิ ใช้ตัวอักษรธรรมดา "[AI] " เท่านั้น) เพื่อให้แยกออกจากบรรทัดที่มาจากสคริปต์ต้นฉบับได้ง่าย',
-        '6. ถ้าสคริปต์ต้นฉบับว่างเปล่าทั้งหมด ให้ใช้ทรานสคริปต์เสียงจริงทั้งหมดเป็นฐานในการตัดบรรทัด และขึ้นต้นทุกบรรทัดด้วย "[AI] "',
-        '7. ประมวลผลครั้งเดียวจากต้นจนจบ ห้ามวนซ้ำ ห้ามพิมพ์ซ้ำ ห้ามหยุดก่อนถึงคำสุดท้ายของทรานสคริปต์เสียงจริง'
-      );
-    } else {
-      rules.push(
-        '4. ห้ามเพิ่ม/ตัด/เรียงคำใหม่ ต้องคงคำและลำดับจาก "สคริปต์ต้นฉบับ" เป๊ะ 100% — ทรานสคริปต์เสียงจริงมีไว้ดูจังหวะเท่านั้น ห้ามเอาคำจากทรานสคริปต์มาแทนคำในสคริปต์ต้นฉบับแม้จะสะกดต่างกัน',
-        '5. ถ้ามีบางช่วงของทรานสคริปต์เสียงจริงที่ไม่มีข้อความในสคริปต์ต้นฉบับรองรับเลย ให้ข้ามช่วงนั้นไปเงียบๆ ห้ามแต่งข้อความเติมเอง และห้ามพยายามยัดคำจากสคริปต์ต้นฉบับไปเติมช่วงที่ไม่ตรงกันจริงๆ',
-        '6. ประมวลผลครั้งเดียวจากต้นจนจบ ห้ามวนซ้ำ ห้ามพิมพ์ซ้ำ ห้ามหยุดก่อนสคริปต์ต้นฉบับหมด'
-      );
-    }
-
-    return [
-      'คุณคือ Thai Subtitle Pacing Engine',
-      '',
-      'หน้าที่: แบ่ง "สคริปต์ต้นฉบับ" ด้านล่างออกเป็นบรรทัดย่อยสำหรับซับไตเติ้ล โดยใช้ "ทรานสคริปต์เสียงจริงพร้อมจุดหยุด" เป็นตัวช่วยตัดสินใจว่าจะตัดจังหวะตรงไหน',
-      '',
-      ...rules,
-      '',
-      'รูปแบบผลลัพธ์: พิมพ์เฉพาะบรรทัดที่ตัดวรรคแล้ว ห้ามมีคำนำ ห้ามมีคำอธิบาย ห้ามมี code block',
-      '',
-      '--- สคริปต์ต้นฉบับ ---',
-      rawScript ? rawScript : '(ไม่มี — ไม่มีสคริปต์ต้นฉบับให้เลย ใช้ทรานสคริปต์เสียงจริงทั้งหมดแทนตามกติกาข้อที่เกี่ยวข้องด้านบน)',
-      '',
-      `--- ทรานสคริปต์เสียงจริงพร้อมจุดหยุด (ใช้ดูจังหวะเสมอ${fillMode ? ' และใช้เป็นแหล่งคำสำหรับช่วงที่สคริปต์ไม่ครอบคลุม' : ' ห้ามคัดลอกคำจากส่วนนี้เว้นแต่กติกาด้านบนอนุญาต'}) ---`,
-      transcriptText
-    ].join('\n');
-  }
-
-  async function callGeminiSplit(apiKey, rawScript, transcriptText, fillMode){
-    const prompt = buildGeminiSplitPrompt(rawScript, transcriptText, fillMode);
-    const res = await fetch(`${GEMINI_ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2 }
-      })
-    });
-
-    if (!res.ok){
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Gemini API error (${res.status}): ${errText.slice(0, 300)}`);
-    }
-
-    const data = await res.json();
-    const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-    const text = Array.isArray(parts) ? parts.map(p => p.text || '').join('') : '';
-    const cleaned = text.replace(/^```[a-zA-Z]*\n?/, '').replace(/```\s*$/, '').trim();
-    if (!cleaned) throw new Error('Gemini ไม่ส่งข้อความบรรทัดที่แยกแล้วกลับมา ลองใหม่อีกครั้ง');
-    return cleaned;
-  }
 
   // ---------- AI split progress bar: staged milestones (15 -> 45 -> 85 -> 100) with a gentle
   // creep toward each milestone so the bar keeps moving and never looks frozen ----------
@@ -1524,7 +1194,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       autoSplitProgressTo(85); // Gemini phase
       showAutoSplitStatus('กำลังแยกบรรทัดด้วย Gemini ตามจังหวะเสียงจริง...');
       const transcriptText = buildTranscriptForGemini(whisperWords);
-      const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE);
+      const splitLines = await callGeminiSplit(geminiKey, raw, transcriptText, SCRIPT_FILL_MODE, WORD_RANGE_MIN, WORD_RANGE_MAX);
 
       editedScript.value = splitLines;
       updateLineCount();
@@ -1540,98 +1210,9 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
     }
   });
 
-  // ---------- canvas drawing ----------
-  function drawFrame(text){
-    ctx.fillStyle = '#00FF00';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!text) return;
 
-    ctx.font = `700 ${FONT_PX}px "${FONT_FAMILY}"`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.lineJoin = 'round';
-    ctx.miterLimit = 2;
-    ctx.lineWidth = STROKE_PX;
-    ctx.strokeStyle = '#000000';
-    ctx.fillStyle = '#FFFFFF';
 
-    const x = CANVAS_W / 2;
-    const y = CANVAS_H - (CANVAS_H * BOTTOM_MARGIN_RATIO);
 
-    ctx.strokeText(text, x, y);
-    ctx.fillText(text, x, y);
-  }
-
-  function findActiveText(segments, t){
-    for (const seg of segments){
-      if (t >= seg.start && t < seg.end) return seg.text;
-    }
-    return '';
-  }
-
-  // =========================================================
-  // RENDER — deterministic, offline (WebCodecs via Mediabunny)
-  // The old approach recorded canvas + audio in real time through
-  // MediaRecorder while the audio actually played back — so the result
-  // depended on the phone keeping up at that exact moment. Any hiccup
-  // (thermal throttling, another app stealing CPU) dropped or delayed
-  // frames and baked a slightly-wrong clip that only showed up after the
-  // fact, which is why some renders needed 2-3 tries. This version never
-  // "plays" anything: audio is decoded once into raw samples, video frames
-  // are drawn and encoded one at a time on a fixed timeline, and both are
-  // muxed into an mp4. A slow device just takes longer — the output timing
-  // is identical no matter how the render actually went, every time.
-  // =========================================================
-  const MEDIABUNNY_URL = './vendor/mediabunny.min.js?v=1.6'; // mediabunny 1.54.0 เก็บไว้ในโปรเจกต์ (ไม่ต้องพึ่งอินเทอร์เน็ตตอนเรนเดอร์)
-  let mediabunnyModulePromise = null;
-  function loadMediabunny(){
-    if (!mediabunnyModulePromise) mediabunnyModulePromise = import(MEDIABUNNY_URL);
-    return mediabunnyModulePromise;
-  }
-
-  async function renderVideo(segments, audioBuffer, onProgress){
-    await document.fonts.load(`700 ${FONT_PX}px "${FONT_FAMILY}"`);
-    await document.fonts.ready;
-
-    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource, QUALITY_HIGH } = await loadMediabunny();
-
-    const output = new Output({
-      format: new Mp4OutputFormat(),
-      target: new BufferTarget(),
-    });
-
-    const videoSource = new CanvasSource(canvas, { codec: 'avc', quality: QUALITY_HIGH });
-    output.addVideoTrack(videoSource);
-
-    const audioSource = new AudioBufferSource({ codec: 'aac', quality: QUALITY_HIGH });
-    output.addAudioTrack(audioSource);
-
-    await output.start();
-
-    const FPS = 30;
-    const frameDur = 1 / FPS;
-    const durationSec = audioBuffer.duration;
-    const totalFrames = Math.max(1, Math.ceil(durationSec * FPS));
-
-    for (let i = 0; i < totalFrames; i++){
-      const t = i * frameDur;
-      const dur = Math.min(frameDur, durationSec - t);
-      drawFrame(findActiveText(segments, t));
-      await videoSource.add(t, dur);
-      if (typeof onProgress === 'function'){
-        onProgress(Math.min(97, (t / durationSec) * 100));
-      }
-    }
-
-    if (typeof onProgress === 'function') onProgress(98);
-    await audioSource.add(audioBuffer);
-
-    await output.finalize();
-    if (typeof onProgress === 'function') onProgress(100);
-
-    const blob = new Blob([output.target.buffer], { type: 'video/mp4' });
-    return { blob, durationSeconds: durationSec };
-  }
 
   // ---------- STEP — confirm lines, run Whisper + matching + acoustic
   // refinement, then render straight away. No manual per-line review step:
@@ -1704,7 +1285,7 @@ import { alignLinesToWords, refineSegmentBoundariesWithEnergy } from './aligner.
       showStatus('กำลังเรนเดอร์คลิปจอเขียว...');
       showProgress();
 
-      const { blob: videoBlob, durationSeconds } = await renderVideo(segments, renderAudioBuffer, setProgress);
+      const { blob: videoBlob, durationSeconds } = await renderVideo({ canvas, segments, audioBuffer: renderAudioBuffer, onProgress: setProgress, fontPx: FONT_PX, strokePx: STROKE_PX, mediabunny: await loadMediabunny() });
       setStep(step3, 'done');
       hideProgress();
 
